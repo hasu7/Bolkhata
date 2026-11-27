@@ -1407,14 +1407,14 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
           else { cancelPendingState(); speakReply('Theek hai, cancel kar diya.', '✨ AI • Cancelled', false, trimmed); }
           return true;
         }
-        if (pendingState.type === 'confirm_amount' && intent === 'confirm_yes') {
+        if ((pendingState.type === 'confirm_amount' || pendingState.type === 'confirm_new_customer') && intent === 'confirm_yes') {
           handleConfirmationDecision(true);
           return true;
         }
         if (pendingState.type === 'missing_amount' && typeof ai.amount === 'number' && ai.amount > 0) {
           const draft = { ...pendingState.draftTx, amount: Math.round(ai.amount) };
           clearPendingUI();
-          commitTransaction(draft, trimmed);
+          requestTransactionConfirmation(draft, trimmed);
           return true;
         }
         if (pendingState.type === 'disambiguate_customer' && ai.customerName) {
@@ -1448,12 +1448,15 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
       }
 
       if (intent === 'add_customer' && ai.customerName) {
-        let existing = customers.find(c => c.name.toLowerCase() === ai.customerName.toLowerCase());
-        if (!existing) existing = addNewCustomer(ai.customerName);
-        switchTab('customers');
-        highlightCustomerCard(existing.id);
-        playTone('success');
-        speakReply(`Naya grahak ${existing.name} jod diya gaya hai.`, '✨ AI • Customer Added ✓', false, trimmed);
+        const existing = customers.find(c => c.name.toLowerCase() === ai.customerName.toLowerCase());
+        if (existing) {
+          switchTab('customers');
+          highlightCustomerCard(existing.id);
+          playTone('success');
+          speakReply(`${existing.name} pehle se list mein hain.`, 'Customer Exists', false, trimmed);
+          return true;
+        }
+        requestNewCustomerConfirmation(ai.customerName, null, trimmed);
         return true;
       }
 
@@ -1490,25 +1493,23 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
       }
 
       if ((intent === 'credit' || intent === 'payment') && ai.customerName) {
-        let cust = customers.find(c => c.name.toLowerCase() === ai.customerName.toLowerCase());
-        let autoCreated = false;
-        if (!cust) {
-          cust = addNewCustomer(ai.customerName);
-          autoCreated = true;
-        }
+        const cust = customers.find(c => c.name.toLowerCase() === ai.customerName.toLowerCase());
         const itemsArr = Array.isArray(ai.itemsList) && ai.itemsList.length ? ai.itemsList : ['Kirana Samaan'];
         const draftTx = {
           intent: intent === 'payment' ? 'payment' : 'credit',
-          customer: cust,
+          customer: cust || null,
           amount: typeof ai.amount === 'number' && ai.amount > 0 ? Math.round(ai.amount) : null,
           items: intent === 'payment' ? 'Cash / UPI Payment' : itemsArr.join(', '),
-          itemsList: intent === 'payment' ? ['Cash / UPI Payment'] : itemsArr,
-          autoCreatedCustomer: autoCreated
+          itemsList: intent === 'payment' ? ['Cash / UPI Payment'] : itemsArr
         };
+        if (!cust) {
+          requestNewCustomerConfirmation(ai.customerName, draftTx, trimmed);
+          return true;
+        }
         if (!draftTx.amount) {
           requestMissingAmount(draftTx, trimmed);
         } else {
-          commitTransaction(draftTx, trimmed);
+          requestTransactionConfirmation(draftTx, trimmed);
         }
         return true;
       }
@@ -1543,7 +1544,7 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
       // A. CHECK PENDING MULTI-TURN STATE FIRST
       if (pendingState) {
         if (/\b(cancel|hatao|chhodo|rehne do|nahi|na)\b/.test(norm)) {
-          if (pendingState.type === 'confirm_amount') {
+          if (pendingState.type === 'confirm_amount' || pendingState.type === 'confirm_new_customer') {
             handleConfirmationDecision(false);
           } else {
             cancelPendingState();
@@ -1558,8 +1559,9 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
             completeDisambiguation(match.customer.id, trimmed);
             return;
           } else {
+            const namesList = pendingState.candidates.map(c => c.name).join(' ya ');
             playTone('error');
-            speakReply('Kripya pura naam boliye — Rajesh Sharma ya Anil Sharma.', 'Disambiguation Needed', true, trimmed);
+            speakReply(`Kripya pura naam boliye — ${namesList}.`, 'Disambiguation Needed', true, trimmed);
             return;
           }
         }
@@ -1569,11 +1571,7 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
           if (amt && amt > 0) {
             const draft = { ...pendingState.draftTx, amount: amt };
             clearPendingUI();
-            if (isLowConfidence) {
-              requestAmountConfirmation(draft, trimmed);
-            } else {
-              commitTransaction(draft, trimmed);
-            }
+            requestTransactionConfirmation(draft, trimmed);
             return;
           } else {
             playTone('error');
@@ -1582,27 +1580,26 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
           }
         }
 
-        if (pendingState.type === 'confirm_amount') {
+        if (pendingState.type === 'confirm_amount' || pendingState.type === 'confirm_new_customer') {
           if (/\b(haan|han|yes|sahi|ok|theek|thik)\b/.test(norm)) {
             handleConfirmationDecision(true);
             return;
           } else {
             playTone('error');
-            speakReply(`Kya ${pendingState.draftTx.amount} rupaye sahi hai? Haan ya na boliye.`, 'Confirmation Needed', true, trimmed);
+            const retryPrompt = pendingState.type === 'confirm_new_customer'
+              ? `Kya naya naam "${pendingState.newName}" sahi hai? Haan ya na boliye.`
+              : `Kya ${pendingState.draftTx.amount} rupaye sahi hai? Haan ya na boliye.`;
+            speakReply(retryPrompt, 'Confirmation Needed', true, trimmed);
             return;
           }
         }
       }
 
-      // B. EXPLICIT "ADD NEW CUSTOMER" VOICE INTENT
+      // B. EXPLICIT "ADD NEW CUSTOMER" VOICE INTENT (asks confirmation first)
       if (/\b(naya\s+grahak|naya\s+customer|new\s+customer|add\s+customer|naya\s+khata|add\s+name|ko\s+add\s+karo|ko\s+jodo|naam\s+jodo)\b/.test(norm) && !extractAmount(norm)) {
         const newName = extractNewCustomerName(norm);
         if (newName) {
-          const created = addNewCustomer(newName);
-          switchTab('customers');
-          highlightCustomerCard(created.id);
-          playTone('success');
-          speakReply(`Naya grahak ${created.name} jod diya gaya hai.`, 'New Customer Added ✓', false, trimmed);
+          requestNewCustomerConfirmation(newName, null, trimmed);
           return;
         }
       }
@@ -1657,9 +1654,16 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
       if (custMatch.status === 'none') {
         const extractedNewName = extractNewCustomerName(norm);
         if (extractedNewName && (amount || itemsList.length > 0)) {
-          const created = addNewCustomer(extractedNewName);
-          custMatch = { status: 'exact', customer: created };
-          autoCreatedCustomer = true;
+          const draftTx = {
+            intent: isPayment ? 'payment' : 'credit',
+            customer: null,
+            amount: amount,
+            items: isPayment ? 'Cash / UPI Payment' : (itemsString || 'Kirana Samaan'),
+            itemsList: isPayment ? ['Cash / UPI Payment'] : (itemsList.length ? itemsList : ['Kirana Samaan']),
+            confidence: confidence
+          };
+          requestNewCustomerConfirmation(extractedNewName, draftTx, trimmed);
+          return;
         }
       }
 
@@ -1695,22 +1699,30 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
         return;
       }
 
-      if (isLowConfidence) {
-        requestAmountConfirmation(draftTx, trimmed);
-        return;
-      }
-
-      commitTransaction(draftTx, trimmed);
+      requestTransactionConfirmation(draftTx, trimmed);
     }
 
     /* =========================================================================
      * EDGE-CASE HANDLERS
      * ========================================================================= */
+    function getSharedNameLabel(candidates) {
+      if (!candidates || candidates.length === 0) return 'grahak';
+      const firstWords = candidates[0].name.split(/\s+/);
+      for (const w of firstWords) {
+        const lower = w.toLowerCase();
+        if (lower.length >= 2 && candidates.every(c => c.name.toLowerCase().split(/\s+/).includes(lower))) {
+          return w;
+        }
+      }
+      return firstWords[0] || 'grahak';
+    }
+
     function openDisambiguationSheet(candidates, draftTx, heardText = null) {
       pendingState = { type: 'disambiguate_customer', candidates, draftTx };
 
+      const sharedLabel = getSharedNameLabel(candidates);
       const namesList = candidates.map(c => c.name).join(' ya ');
-      document.getElementById('disambiguate-title').textContent = `Kaunse ${candidates[0].name.split(' ').slice(-1)[0]} ji?`;
+      document.getElementById('disambiguate-title').textContent = `Kaunse ${sharedLabel}?`;
 
       const summaryBits = [];
       if (draftTx.items && draftTx.intent !== 'query') summaryBits.push(draftTx.items);
@@ -1736,7 +1748,7 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
 
       document.getElementById('disambiguate-sheet').classList.remove('hidden');
       playTone('start');
-      speakReply(`Kaunse Sharma ji — ${namesList}?`, 'Confirm Customer', false, heardText);
+      speakReply(`Kaunse ${sharedLabel} — ${namesList}?`, 'Confirm Customer', false, heardText);
     }
 
     function completeDisambiguation(customerId, heardText = null) {
@@ -1758,7 +1770,7 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
         return;
       }
 
-      commitTransaction(draftTx, heardText);
+      requestTransactionConfirmation(draftTx, heardText);
     }
 
     function requestMissingAmount(draftTx, heardText = null) {
@@ -1773,24 +1785,74 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
       speakReply('Kitne rupaye likhne hain?', 'Waiting for Amount', false, heardText);
     }
 
-    function requestAmountConfirmation(draftTx, heardText = null) {
-      pendingState = { type: 'confirm_amount', draftTx };
+    // Confirm before creating any new customer (prevents misheard names from cluttering the list)
+    function requestNewCustomerConfirmation(newName, draftTx = null, heardText = null) {
+      pendingState = { type: 'confirm_new_customer', newName, draftTx, heardText };
       const box = document.getElementById('pending-prompt-box');
-      document.getElementById('pending-prompt-title').textContent = 'Confirm Amount';
-      document.getElementById('pending-prompt-detail').textContent = `${draftTx.customer.name} • ${formatINR(draftTx.amount)} (${draftTx.items})`;
+      document.getElementById('pending-prompt-title').textContent = 'Confirm New Customer Name';
+      const extra = draftTx && draftTx.amount
+        ? ` (+ ${draftTx.intent === 'payment' ? 'Jama' : 'Udhaar'} ${formatINR(draftTx.amount)})`
+        : '';
+      document.getElementById('pending-prompt-detail').textContent = `Naya khata "${newName}" banayein?${extra}`;
       document.getElementById('pending-confirm-actions').classList.remove('hidden');
       box.classList.remove('hidden');
 
       playTone('start');
-      speakReply(`Kya ${draftTx.amount} rupaye sahi hai? Haan ya na boliye.`, 'Confirm Amount', false, heardText);
+      speakReply(`Naya naam "${newName}" suna. Kya naya khata banayein? Haan ya na boliye.`, 'Confirm New Name', false, heardText);
+    }
+
+    // Always confirm before adding (Udhaar) or removing (Jama) money from a customer's account
+    function requestTransactionConfirmation(draftTx, heardText = null) {
+      pendingState = { type: 'confirm_amount', draftTx, heardText };
+      const isPayment = draftTx.intent === 'payment';
+      const box = document.getElementById('pending-prompt-box');
+      document.getElementById('pending-prompt-title').textContent = isPayment
+        ? 'Confirm Payment (Jama)'
+        : 'Confirm Udhaar (Credit)';
+      document.getElementById('pending-prompt-detail').textContent = isPayment
+        ? `${draftTx.customer.name} se ${formatINR(draftTx.amount)} jama karein?`
+        : `${draftTx.customer.name} • ${formatINR(draftTx.amount)} (${draftTx.items})`;
+      document.getElementById('pending-confirm-actions').classList.remove('hidden');
+      box.classList.remove('hidden');
+
+      playTone('start');
+      const voiceMsg = isPayment
+        ? `${draftTx.customer.name} se ${draftTx.amount} rupaye jama kar dein? Haan ya na boliye.`
+        : `${draftTx.customer.name} ke khate mein ${draftTx.amount} rupaye udhaar likh dein? Haan ya na boliye.`;
+      speakReply(voiceMsg, isPayment ? 'Confirm Payment' : 'Confirm Udhaar', false, heardText);
     }
 
     function handleConfirmationDecision(approved) {
-      if (!pendingState || pendingState.type !== 'confirm_amount') return;
-      const draft = pendingState.draftTx;
+      if (!pendingState) return;
+      const state = pendingState;
       clearPendingUI();
-      if (approved) commitTransaction(draft);
-      else speakReply('Theek hai, entry save nahi ki gayi. Dobara boliye.');
+
+      if (state.type === 'confirm_new_customer') {
+        if (!approved) {
+          speakReply('Theek hai, naya naam add nahi kiya gaya. Dobara boliye.', 'Cancelled');
+          return;
+        }
+        const created = addNewCustomer(state.newName);
+        if (state.draftTx) {
+          const nextDraft = { ...state.draftTx, customer: created, autoCreatedCustomer: true };
+          if (!nextDraft.amount) {
+            requestMissingAmount(nextDraft, state.heardText);
+          } else {
+            requestTransactionConfirmation(nextDraft, state.heardText);
+          }
+        } else {
+          switchTab('customers');
+          highlightCustomerCard(created.id);
+          playTone('success');
+          speakReply(`Naya grahak ${created.name} jod diya gaya hai.`, 'New Customer Added ✓', false, state.heardText);
+        }
+        return;
+      }
+
+      if (state.type === 'confirm_amount') {
+        if (approved) commitTransaction(state.draftTx, state.heardText);
+        else speakReply('Theek hai, entry save nahi ki gayi. Dobara boliye.', 'Cancelled');
+      }
     }
 
     function cancelPendingState() {
@@ -2131,8 +2193,49 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
         ? transactions.filter(t => t.customerId === filterCustomerId)
         : transactions;
 
+      let borrowedSummaryHtml = '';
+      if (filterCustomerId) {
+        const cust = customers.find(c => c.id === filterCustomerId);
+        const creditTxs = list.filter(t => t.type === 'credit');
+        if (cust) {
+          const totalBorrowed = creditTxs.reduce((sum, t) => sum + t.amount, 0);
+          const rowsHtml = creditTxs.length
+            ? creditTxs.map(t => {
+                const itemsArr = Array.isArray(t.itemsList) && t.itemsList.length
+                  ? t.itemsList
+                  : (t.items ? t.items.split(',').map(s => s.trim()).filter(Boolean) : ['Kirana Samaan']);
+                return `
+                  <li class="flex items-start justify-between gap-2 py-1.5 border-b border-amber-100 last:border-0">
+                    <div class="min-w-0">
+                      <p class="text-xs font-bold text-slate-800">${itemsArr.join(', ')}</p>
+                      <p class="text-[10px] text-slate-500">${formatTime(t.timestamp)}</p>
+                    </div>
+                    <span class="text-xs font-extrabold text-amber-700 tabular-nums shrink-0">${formatINR(t.amount)}</span>
+                  </li>
+                `;
+              }).join('')
+            : `<li class="text-xs text-slate-500 py-1">Abhi tak koi udhaar samaan nahi likha gaya hai.</li>`;
+
+          borrowedSummaryHtml = `
+            <div class="bg-amber-50/90 border border-amber-200 rounded-2xl p-3.5 shadow-sm">
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <div>
+                  <p class="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider">Udhaar Samaan Hisaab (Borrowed Items)</p>
+                  <h3 class="text-sm font-extrabold text-slate-900 mt-0.5">${cust.name}</h3>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm font-extrabold text-amber-700 tabular-nums">${formatINR(totalBorrowed)}</p>
+                  <p class="text-[10px] font-semibold text-slate-500">Total Borrowed</p>
+                </div>
+              </div>
+              <ul class="bg-white/90 rounded-xl px-3 py-1.5 border border-amber-100">${rowsHtml}</ul>
+            </div>
+          `;
+        }
+      }
+
       if (list.length === 0) {
-        container.innerHTML = `
+        container.innerHTML = borrowedSummaryHtml + `
           <div class="bg-white rounded-2xl p-6 text-center border border-slate-200">
             <p class="text-sm font-bold text-slate-700">No entries yet</p>
             <p class="text-xs text-slate-500 mt-1">Tap the green mic button or try a Demo Chip below.</p>
@@ -2140,7 +2243,7 @@ Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
         return;
       }
 
-      container.innerHTML = list.map(tx => {
+      container.innerHTML = borrowedSummaryHtml + list.map(tx => {
         const isCredit = tx.type === 'credit';
         const amtColor = isCredit ? 'text-amber-600' : 'text-emerald-700';
         const amtPrefix = isCredit ? '+' : '-';
