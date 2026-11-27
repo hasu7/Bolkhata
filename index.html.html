@@ -1,0 +1,402 @@
+<!-- ... existing code ... -->
+    <!-- Live Voice Feedback & Assistant Reply Banner -->
+    <section id="voice-banner" class="bg-white border-b border-slate-200 px-4 py-2.5 shrink-0 transition-all">
+      <!-- Idle / Assistant Reply State -->
+      <div id="voice-idle-view" class="flex items-start gap-2.5">
+        <div id="assistant-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-600 mt-1.5 shrink-0"></div>
+        <div class="flex-1 min-w-0">
+          <p id="transcript-label" class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">BolKhata Ready</p>
+          <p id="heard-hint" class="hidden text-[11px] font-medium text-slate-500 bg-slate-100 rounded-lg px-2 py-0.5 mt-1 break-words"></p>
+          <p id="assistant-reply" class="text-sm font-semibold text-slate-800 leading-snug mt-0.5">
+            Mic dabaiye aur boliye — "Sharma ji ke khate mein 165 rupaye likh do"
+          </p>
+        </div>
+      </div>
+
+      <!-- Active Listening Waveform State -->
+      <div id="voice-listening-view" class="hidden flex items-center gap-3 py-0.5">
+        <div class="flex items-center gap-1 h-6 px-1.5 shrink-0">
+          <span class="wave-bar w-1 bg-amber-600 rounded-full"></span>
+          <span class="wave-bar w-1 bg-emerald-600 rounded-full"></span>
+          <span class="wave-bar w-1 bg-amber-600 rounded-full"></span>
+          <span class="wave-bar w-1 bg-emerald-600 rounded-full"></span>
+          <span class="wave-bar w-1 bg-amber-600 rounded-full"></span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[11px] font-bold text-amber-600 tracking-wide">Sun raha hoon... (bolne ke baad 2 sec rukiye ya Stop dabaiye)</p>
+          <p id="live-transcript" class="text-sm font-medium text-slate-800 line-clamp-2 leading-snug mt-0.5">Boliye...</p>
+        </div>
+      </div>
+
+      <!-- Pending Follow-Up Banner (Missing Amount OR Low-Confidence Confirmation) -->
+<!-- ... existing code ... -->
+    let isMuted = false;
+    let isListening = false;
+    let recognition = null;
+
+    // Patient Continuous Listening State
+    let initialWaitTimer = null;
+    let silenceTimer = null;
+    let finalTranscript = '';
+    let latestInterim = '';
+    let finalConfidence = 0;
+    let hasCapturedSpeech = false;
+    let handledThisSession = false;
+    let errorTriggeredNoSpeech = false;
+
+    // Pending Multi-Turn Conversation State (disambiguation, missing amount, confirmation)
+    let pendingState = null;
+// ... existing code ... -->
+    /* =========================================================================
+     * CORE VOICE COMMAND ROUTER & STATE MACHINE
+     * ========================================================================= */
+    function updateHeardHint(text) {
+      const hintEl = document.getElementById('heard-hint');
+      if (!hintEl) return;
+      if (text) {
+        hintEl.textContent = `Heard: "${text}"`;
+        hintEl.classList.remove('hidden');
+      } else {
+        hintEl.textContent = '';
+        hintEl.classList.add('hidden');
+      }
+    }
+
+    function processSpokenInput(rawTranscript, confidence = 0.95, isSimulatedNoise = false) {
+      const trimmed = (rawTranscript || '').trim();
+      const norm = normalizeText(trimmed);
+
+      // Show exact transcript heard so the user can verify recognition accuracy
+      if (!isSimulatedNoise && trimmed) {
+        updateHeardHint(trimmed);
+        document.getElementById('transcript-label').textContent = `Heard: "${trimmed}"`;
+      } else {
+        updateHeardHint('');
+      }
+
+      // Noise / Empty / Gibberish Guard (do NOT reject valid transcripts just because Chrome returns confidence === 0)
+      if (isSimulatedNoise || !norm || norm.length < 2) {
+        triggerNoiseFallback();
+        return;
+      }
+
+      // -----------------------------------------------------------------------
+      // A. CHECK PENDING MULTI-TURN STATE FIRST
+      // -----------------------------------------------------------------------
+      if (pendingState) {
+        // Allow user to cancel any pending prompt
+        if (/\b(cancel|hatao|chhodo|rehne do|nahi|na)\b/.test(norm)) {
+          if (pendingState.type === 'confirm_amount') {
+            handleConfirmationDecision(false);
+          } else {
+            cancelPendingState();
+            speakReply('Theek hai, cancel kar diya.');
+          }
+          return;
+        }
+
+        // 1. Disambiguating customer (e.g. "Rajesh Sharma" or "Anil")
+        if (pendingState.type === 'disambiguate_customer') {
+          const match = matchCustomers(norm);
+          if (match.status === 'exact' && pendingState.candidates.some(c => c.id === match.customer.id)) {
+            completeDisambiguation(match.customer.id);
+            return;
+          } else {
+            playTone('error');
+            speakReply('Kripya pura naam boliye — Rajesh Sharma ya Anil Sharma.', 'Disambiguation Needed', true);
+            return;
+          }
+        }
+
+        // 2. Waiting for missing amount (e.g. "65 rupaye" or "paune sau")
+        if (pendingState.type === 'missing_amount') {
+          const amt = extractAmount(norm);
+          if (amt && amt > 0) {
+            const draft = { ...pendingState.draftTx, amount: amt };
+            clearPendingUI();
+            if (confidence > 0 && confidence < 0.45) {
+              requestAmountConfirmation(draft);
+            } else {
+              commitTransaction(draft);
+            }
+            return;
+          } else {
+            playTone('error');
+            speakReply('Amount samajh nahi aaya. Kitne rupaye likhne hain?', 'Amount Needed', true);
+            return;
+          }
+        }
+
+        // 3. Waiting for Haan / Na confirmation
+        if (pendingState.type === 'confirm_amount') {
+          if (/\b(haan|han|yes|sahi|ok|theek|thik)\b/.test(norm)) {
+            handleConfirmationDecision(true);
+            return;
+          } else {
+            playTone('error');
+            speakReply(`Kya ${pendingState.draftTx.amount} rupaye sahi hai? Haan ya na boliye.`, 'Confirmation Needed', true);
+            return;
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // B. INTENT DETECTION (UNDO -> QUERY -> PAYMENT -> ADD CREDIT)
+      // -----------------------------------------------------------------------
+// ... existing code ...
+      // Handle Missing Amount (e.g., "Meena Madam ke khate mein ek litre doodh likh do")
+      if (!draftTx.amount) {
+        requestMissingAmount(draftTx);
+        return;
+      }
+
+      // Handle Low-Confidence Amount Confirmation (only when Chrome reports an explicit low non-zero score)
+      if (confidence > 0 && confidence < 0.45) {
+        requestAmountConfirmation(draftTx);
+        return;
+      }
+
+      // Everything is clear -> Commit immediately!
+      commitTransaction(draftTx);
+    }
+// ... existing code ...
+    /* =========================================================================
+     * SPEECH RECOGNITION (WEB SPEECH API — PATIENT CONTINUOUS MODE)
+     * ========================================================================= */
+    function clearListeningTimers() {
+      if (initialWaitTimer) {
+        clearTimeout(initialWaitTimer);
+        initialWaitTimer = null;
+      }
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+      }
+    }
+
+    // Score up to 3 alternatives and prefer one containing a known customer or rupee amount
+    function pickBestAlternative(resultListItem) {
+      let bestAlt = resultListItem[0];
+      let bestScore = -1;
+
+      for (let j = 0; j < resultListItem.length; j++) {
+        const alt = resultListItem[j];
+        const norm = normalizeText(alt.transcript || '');
+        if (!norm) continue;
+
+        let score = 0;
+        const custMatch = matchCustomers(norm);
+        if (custMatch.status === 'exact' || custMatch.status === 'ambiguous') score += 3;
+
+        const { itemsString, remainingText } = extractItems(norm);
+        if (extractAmount(remainingText)) score += 3;
+        if (itemsString) score += 1;
+        if (/\b(cancel|galat|hatao|undo|jama|baaki|udhaar|total|kul|haan|na)\b/.test(norm)) score += 1;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestAlt = alt;
+        }
+      }
+
+      return {
+        transcript: (bestAlt && bestAlt.transcript ? bestAlt.transcript : '').trim(),
+        confidence: bestAlt && typeof bestAlt.confidence === 'number' ? bestAlt.confidence : 0
+      };
+    }
+
+    function finishAndProcessTranscript() {
+      if (handledThisSession) return;
+      handledThisSession = true;
+      clearListeningTimers();
+
+      const combined = (finalTranscript + ' ' + latestInterim).replace(/\s+/g, ' ').trim();
+      if (combined.length > 0) {
+        processSpokenInput(combined, finalConfidence, false);
+      } else {
+        updateHeardHint('');
+        playTone('error');
+        speakReply('Kuch sunai nahi diya. Mic dabakar thoda paas se boliye.', 'No Speech Detected', true);
+      }
+    }
+
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return null;
+
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 3;
+      rec.lang = recognitionLang;
+
+      rec.onstart = () => {
+        isListening = true;
+        finalTranscript = '';
+        latestInterim = '';
+        finalConfidence = 0;
+        hasCapturedSpeech = false;
+        handledThisSession = false;
+        errorTriggeredNoSpeech = false;
+        clearListeningTimers();
+
+        setListeningUI(true);
+        playTone('start');
+
+        // Allow up to 6.5 seconds for the user to start speaking
+        initialWaitTimer = setTimeout(() => {
+          if (isListening && !hasCapturedSpeech) {
+            errorTriggeredNoSpeech = true;
+            try { rec.stop(); } catch (e) {}
+          }
+        }, 6500);
+      };
+
+      rec.onresult = (event) => {
+        let builtFinal = '';
+        let builtInterim = '';
+        let confSum = 0;
+        let confCount = 0;
+
+        for (let i = 0; i < event.results.length; i++) {
+          const res = event.results[i];
+          if (res.isFinal) {
+            const best = pickBestAlternative(res);
+            if (best.transcript) {
+              builtFinal += (builtFinal ? ' ' : '') + best.transcript;
+            }
+            if (best.confidence > 0) {
+              confSum += best.confidence;
+              confCount++;
+            }
+          } else {
+            const interimPiece = (res[0] && res[0].transcript ? res[0].transcript : '').trim();
+            if (interimPiece) {
+              builtInterim += (builtInterim ? ' ' : '') + interimPiece;
+            }
+          }
+        }
+
+        finalTranscript = builtFinal.trim();
+        latestInterim = builtInterim.trim();
+        finalConfidence = confCount > 0 ? (confSum / confCount) : 0;
+
+        const liveCombined = (finalTranscript + ' ' + latestInterim).replace(/\s+/g, ' ').trim();
+        if (liveCombined) {
+          hasCapturedSpeech = true;
+          document.getElementById('live-transcript').textContent = liveCombined;
+
+          // Cancel initial wait timer once speech begins
+          if (initialWaitTimer) {
+            clearTimeout(initialWaitTimer);
+            initialWaitTimer = null;
+          }
+
+          // Reset 2.4-second silence debounce timer on every new result
+          if (silenceTimer) clearTimeout(silenceTimer);
+          silenceTimer = setTimeout(() => {
+            if (isListening) {
+              try { rec.stop(); } catch (e) {}
+            }
+          }, 2400);
+        }
+      };
+
+      rec.onerror = (event) => {
+        clearListeningTimers();
+        isListening = false;
+        setListeningUI(false);
+
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          handledThisSession = true;
+          updateHeardHint('');
+          speakReply('Microphone permission denied. Type below or use Demo Chips.', 'Mic Permission Needed', true);
+        } else if (event.error === 'audio-capture') {
+          handledThisSession = true;
+          updateHeardHint('');
+          triggerNoiseFallback();
+        } else if (event.error === 'no-speech') {
+          errorTriggeredNoSpeech = true;
+          // If words were already captured before no-speech, still process them!
+          finishAndProcessTranscript();
+        } else if (event.error !== 'aborted') {
+          const captured = (finalTranscript + ' ' + latestInterim).trim();
+          if (captured) {
+            finishAndProcessTranscript();
+          } else {
+            handledThisSession = true;
+            updateHeardHint('');
+            triggerNoiseFallback();
+          }
+        }
+      };
+
+      rec.onend = () => {
+        clearListeningTimers();
+        const wasActive = isListening || hasCapturedSpeech || errorTriggeredNoSpeech;
+        isListening = false;
+        setListeningUI(false);
+
+        if (wasActive && !handledThisSession) {
+          finishAndProcessTranscript();
+        }
+      };
+
+      return rec;
+    }
+
+    function toggleListening() {
+      // Stop any ongoing TTS so mic doesn't hear itself
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+      if (isListening && recognition) {
+        clearListeningTimers();
+        try {
+          recognition.stop();
+        } catch (err) {
+          isListening = false;
+          setListeningUI(false);
+          finishAndProcessTranscript();
+        }
+        return;
+      }
+
+      if (!recognition) {
+        recognition = initSpeechRecognition();
+      }
+
+      if (!recognition) {
+        speakReply('Speech API is not supported in this browser. Use the Demo Chips or text box below!', 'Browser Mic Unsupported', true);
+        return;
+      }
+
+      recognition.lang = recognitionLang;
+      try {
+        recognition.start();
+      } catch (err) {
+        // Handle rapid re-clicks gracefully
+        clearListeningTimers();
+        try { recognition.stop(); } catch (e) {}
+      }
+    }
+// ... existing code ...
+    function simulateShopNoise() {
+      const drawer = document.getElementById('demo-chips-drawer');
+      if (!drawer.classList.contains('hidden')) toggleDemoChips();
+
+      setListeningUI(true);
+      document.getElementById('live-transcript').textContent = '🔊 [Horn... traffic noise... static]';
+      setTimeout(() => {
+        setListeningUI(false);
+        processSpokenInput('...', 0.22, true);
+      }, 700);
+    }
+// ... existing code ...
+    function confirmResetDemo() {
+      closeResetModal();
+      clearPendingUI();
+      clearCustomerFilter();
+      hideWaToast();
+      updateHeardHint('');
+      if (undoInterval) clearInterval(undoInterval);
+// ... existing code ...
