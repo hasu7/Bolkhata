@@ -150,6 +150,10 @@
         </div>
 
         <div class="flex items-center gap-1.5">
+          <button id="btn-ai" onclick="openAiModal()" title="Gemini AI Mode (Optional API Key)"
+            class="px-2.5 py-1.5 rounded-xl bg-emerald-800/80 hover:bg-emerald-800 border border-white/15 text-xs font-bold tracking-wide transition active:scale-95 flex items-center gap-1">
+            <span>✨</span><span id="btn-ai-label">AI</span>
+          </button>
           <button id="btn-lang" onclick="toggleLanguage()" title="Switch Speech Language"
             class="px-2.5 py-1.5 rounded-xl bg-emerald-800/80 hover:bg-emerald-800 border border-white/15 text-xs font-bold tracking-wide transition active:scale-95">
             hi-IN
@@ -436,6 +440,36 @@
       </div>
     </div>
 
+    <!-- Gemini AI Mode Modal (Bring Your Own Key, stored only in localStorage) -->
+    <div id="ai-modal" class="hidden absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+      <div class="w-full max-w-xs bg-white rounded-3xl p-5 shadow-2xl">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-1.5">
+            <span>✨</span> Gemini AI Mode
+          </h3>
+          <button onclick="closeAiModal()" class="text-slate-400 hover:text-slate-700 text-sm px-1.5">✕</button>
+        </div>
+        <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+          Paste a free <strong>Google AI Studio</strong> Gemini API key to understand messy Hinglish, new names, and any item automatically. Saved <em>only</em> in your browser.
+        </p>
+        <form onsubmit="saveAiSettings(event)" class="mt-3.5 space-y-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Gemini API Key</label>
+            <input id="input-gemini-key" type="password" placeholder="AIzaSy..."
+              class="w-full px-3 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-600 focus:bg-white" />
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input id="chk-ai-enabled" type="checkbox" class="w-4 h-4 accent-emerald-700 rounded" checked />
+            <span class="text-xs font-bold text-slate-700">Enable AI Understanding (gemini-2.5-flash)</span>
+          </label>
+          <div class="flex items-center gap-2 pt-1">
+            <button type="button" onclick="clearAiKey()" class="px-3 py-2.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">Clear</button>
+            <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-700 text-white text-xs font-bold shadow-sm">Save & Activate</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Custom Reset Confirmation Modal -->
     <div id="reset-modal" class="hidden absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div class="w-full max-w-xs bg-white rounded-3xl p-5 shadow-2xl">
@@ -464,6 +498,8 @@
 
     const STORAGE_KEY_CUSTOMERS = 'bolkhata_customers_v2';
     const STORAGE_KEY_TXS = 'bolkhata_txs_v2';
+    const STORAGE_KEY_AI_KEY = 'bolkhata_gemini_key_v1';
+    const STORAGE_KEY_AI_ENABLED = 'bolkhata_gemini_enabled_v1';
 
     const DEFAULT_CUSTOMERS = [
       { id: 'c1', name: 'Rajesh Sharma', balance: 1255, phone: '+91 98101 23451' },
@@ -809,10 +845,68 @@
       'अस्सी': 'assi', 'पचासी': 'pachasi', 'नब्बे': 'nabbe', 'पचानवे': 'pachanve'
     };
 
+    const DEVA_VOWELS = {
+      'अ':'a','आ':'aa','इ':'i','ई':'ee','उ':'u','ऊ':'oo','ऋ':'ri',
+      'ए':'e','ऐ':'ai','ओ':'o','औ':'au'
+    };
+    const DEVA_CONSONANTS = {
+      'क':'k','ख':'kh','ग':'g','घ':'gh','ङ':'ng',
+      'च':'ch','छ':'chh','ज':'j','झ':'jh','ञ':'ny',
+      'ट':'t','ठ':'th','ड':'d','ढ':'dh','ण':'n',
+      'त':'t','थ':'th','द':'d','ध':'dh','न':'n',
+      'प':'p','फ':'ph','ब':'b','भ':'bh','म':'m',
+      'य':'y','र':'r','ल':'l','व':'v','श':'sh','ष':'sh','स':'s','ह':'h',
+      'क़':'q','ख़':'kh','ग़':'g','ज़':'z','ड़':'d','ढ़':'dh','फ़':'f'
+    };
+    const DEVA_MATRAS = {
+      'ा':'a','ि':'i','ी':'i','ु':'u','ू':'u','ृ':'ri',
+      'े':'e','ै':'ai','ो':'o','ौ':'au','ॅ':'e','ॉ':'o'
+    };
+
+    function transliterateDevanagari(word) {
+      let out = '';
+      let i = 0;
+      const n = word.length;
+      while (i < n) {
+        let ch = word[i];
+        let nxt = i + 1 < n ? word[i + 1] : '';
+        if (nxt === '़' && DEVA_CONSONANTS[ch + nxt]) {
+          ch = ch + nxt;
+          i++;
+          nxt = i + 1 < n ? word[i + 1] : '';
+        }
+        if (DEVA_CONSONANTS[ch]) {
+          out += DEVA_CONSONANTS[ch];
+          if (nxt === '्') {
+            i += 2;
+            continue;
+          } else if (DEVA_MATRAS[nxt]) {
+            out += DEVA_MATRAS[nxt];
+            i += 2;
+            continue;
+          } else if (nxt === 'ं' || nxt === 'ँ') {
+            out += 'an';
+            i += 2;
+            continue;
+          } else {
+            if (i < n - 1) out += 'a';
+            i++;
+            continue;
+          }
+        } else if (DEVA_VOWELS[ch]) {
+          out += DEVA_VOWELS[ch];
+        } else if (ch === 'ं' || ch === 'ँ') {
+          out += 'n';
+        }
+        i++;
+      }
+      return out || word;
+    }
+
     function normalizeText(raw) {
       if (!raw) return '';
       let text = raw.replace(/[०-९]/g, d => String('०१२३४५६७८९'.indexOf(d)));
-      text = text.replace(/[\u0900-\u097F]+/g, word => DEVANAGARI_MAP[word] || word);
+      text = text.replace(/[\u0900-\u097F]+/g, word => DEVANAGARI_MAP[word] || transliterateDevanagari(word));
       return text
         .toLowerCase()
         .replace(/[₹,?!।]/g, ' ')
@@ -1098,23 +1192,62 @@
       return { status: 'none' };
     }
 
-    // Extract a brand-new customer name from Hindi/Hinglish phrases
+    const NAME_STOP_WORDS = new Set([
+      'aaj', 'today', 'total', 'kul', 'cancel', 'undo', 'kitna', 'kitne', 'mera', 'apna',
+      'naya', 'new', 'grahak', 'customer', 'khata', 'khate', 'naam', 'mein', 'me', 'ka', 'ke', 'ki', 'ko', 'ne', 'se',
+      'likh', 'likho', 'jod', 'jodo', 'add', 'karo', 'banao', 'do', 'udhaar', 'udhar', 'jama', 'diye', 'diya', 'kiye', 'wapas', 'payment', 'paid',
+      'rupaye', 'rupaya', 'rs', 'rupees', 'kilo', 'kg', 'litre', 'liter', 'gram', 'packet', 'darjan', 'bottle',
+      'ek', 'teen', 'chaar', 'char', 'paanch', 'panch', 'chhe', 'saat', 'aath', 'nau', 'das',
+      'paune', 'sawa', 'saade', 'dedh', 'dhai', 'aadha', 'sau', 'hazaar', 'hazar', 'baaki', 'balance', 'hai', 'hua'
+    ]);
+
+    function isItemWord(w) {
+      return ITEM_CATALOG.some(item => item.keys.includes(w));
+    }
+
+    function cleanCandidateName(rawName) {
+      if (!rawName) return null;
+      const parts = rawName
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(w => /^[a-z]{2,}$/.test(w) && !NAME_STOP_WORDS.has(w) && !isItemWord(w));
+      if (parts.length === 0) return null;
+      return titleCase(parts.slice(0, 2).join(' '));
+    }
+
+    // Extract a brand-new customer name from Hindi/Hinglish phrases (after Devanagari transliteration)
     function extractNewCustomerName(normText) {
-      // Explicit: "naya grahak Ramesh Verma jodo" / "add customer Ramesh Verma"
-      const explicitMatch = normText.match(/(?:naya\s+grahak|naya\s+customer|new\s+customer|add\s+customer|naya\s+khata)\s+([a-z]+(?:\s+[a-z]+)?)/i);
-      if (explicitMatch && explicitMatch[1]) {
-        const cleaned = explicitMatch[1].replace(/\b(jodo|jod|add|karo|banao|ka|ke|ki)\b/gi, '').trim();
-        if (cleaned.length >= 2) return titleCase(cleaned);
+      // 1. Explicit after keyword: "naya grahak Ramesh Verma jodo" / "add customer Rohit"
+      const explicitAfter = normText.match(/(?:naya\s+grahak|naya\s+customer|new\s+customer|add\s+customer|naya\s+khata|add\s+name)\s+([a-z]+(?:\s+[a-z]+){0,2})/i);
+      if (explicitAfter && explicitAfter[1]) {
+        const cleaned = cleanCandidateName(explicitAfter[1]);
+        if (cleaned) return cleaned;
       }
 
-      // Implicit: "Ramesh Verma ke khate mein ..." or "Ramesh ne 200 rupaye jama kiye"
-      const implicitMatch = normText.match(/^([a-z]+(?:\s+[a-z]+)?)\s+(?:ke\s+khate|ka\s+khata|ke\s+naam|ne\s+\d+|ne\s+paune|ne\s+sawa|ne\s+saade|ne\s+dedh|ne\s+dhai)/i);
-      if (implicitMatch && implicitMatch[1]) {
-        const candidate = implicitMatch[1].trim();
-        const banned = ['aaj', 'total', 'kul', 'cancel', 'undo', 'kitna', 'kitne', 'mera', 'apna'];
-        if (!banned.includes(candidate.split(' ')[0]) && candidate.length >= 2) {
-          return titleCase(candidate);
-        }
+      // 2. Explicit before keyword: "Ramesh Verma ka naya khata banao" / "Rohit ko add karo"
+      const explicitBefore = normText.match(/^([a-z]+(?:\s+[a-z]+)?)\s+(?:ka\s+naya\s+khata|ko\s+add|ko\s+jodo|ko\s+jod|naam\s+jodo)/i);
+      if (explicitBefore && explicitBefore[1]) {
+        const cleaned = cleanCandidateName(explicitBefore[1]);
+        if (cleaned) return cleaned;
+      }
+
+      // 3. Implicit with Hindi postposition: "Rohit ke khate mein...", "Rohit ka 200 rupaye...", "Rohit ne 500 jama kiye", "Rohit ko 100 udhaar"
+      const implicitPost = normText.match(/^([a-z]+(?:\s+[a-z]+)?)\s+(?:ke|ka|ki|ko|ne)\b/i);
+      if (implicitPost && implicitPost[1]) {
+        const cleaned = cleanCandidateName(implicitPost[1]);
+        if (cleaned) return cleaned;
+      }
+
+      // 4. Shorthand: "Rohit 200 rupaye likh do" or "Ramesh Verma 2 kilo aata 150"
+      const words = normText.split(/\s+/);
+      const leading = [];
+      for (const w of words) {
+        if (/^\d/.test(w) || NAME_STOP_WORDS.has(w) || isItemWord(w)) break;
+        if (/^[a-z]{2,}$/.test(w)) leading.push(w);
+        if (leading.length === 2) break;
+      }
+      if (leading.length > 0) {
+        return titleCase(leading.join(' '));
       }
       return null;
     }
@@ -1144,7 +1277,259 @@
     /* =========================================================================
      * CORE VOICE COMMAND ROUTER & STATE MACHINE
      * ========================================================================= */
-    function processSpokenInput(rawTranscript, confidence = 0.95, isSimulatedNoise = false) {
+    /* =========================================================================
+     * OPTIONAL GEMINI AI ENGINE (BYOK — SAVED ONLY IN LOCALSTORAGE)
+     * ========================================================================= */
+    function getAiConfig() {
+      try {
+        const key = (localStorage.getItem(STORAGE_KEY_AI_KEY) || '').trim();
+        const enabled = localStorage.getItem(STORAGE_KEY_AI_ENABLED) !== 'false';
+        return { key, enabled: Boolean(key && enabled) };
+      } catch (e) {
+        return { key: '', enabled: false };
+      }
+    }
+
+    function updateAiButtonUI() {
+      const { enabled } = getAiConfig();
+      const btn = document.getElementById('btn-ai');
+      const lbl = document.getElementById('btn-ai-label');
+      if (!btn || !lbl) return;
+      if (enabled) {
+        btn.className = 'px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-200 text-xs font-extrabold tracking-wide transition active:scale-95 flex items-center gap-1 shadow-sm';
+        lbl.textContent = 'AI ON';
+      } else {
+        btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-800/80 hover:bg-emerald-800 text-white border border-white/15 text-xs font-bold tracking-wide transition active:scale-95 flex items-center gap-1';
+        lbl.textContent = 'AI';
+      }
+    }
+
+    function openAiModal() {
+      const key = localStorage.getItem(STORAGE_KEY_AI_KEY) || '';
+      const enabled = localStorage.getItem(STORAGE_KEY_AI_ENABLED) !== 'false';
+      document.getElementById('input-gemini-key').value = key;
+      document.getElementById('chk-ai-enabled').checked = enabled;
+      document.getElementById('ai-modal').classList.remove('hidden');
+    }
+
+    function closeAiModal() {
+      document.getElementById('ai-modal').classList.add('hidden');
+    }
+
+    function saveAiSettings(e) {
+      e.preventDefault();
+      const key = document.getElementById('input-gemini-key').value.trim();
+      const enabled = document.getElementById('chk-ai-enabled').checked;
+      localStorage.setItem(STORAGE_KEY_AI_KEY, key);
+      localStorage.setItem(STORAGE_KEY_AI_ENABLED, String(enabled));
+      updateAiButtonUI();
+      closeAiModal();
+      if (key && enabled) {
+        playTone('success');
+        speakReply('Gemini AI mode chalu ho gaya hai! Ab kuch bhi aaram se boliye.', '✨ Gemini AI Active');
+      } else {
+        speakReply('Offline local parser mode active hai.', 'Offline Mode');
+      }
+    }
+
+    function clearAiKey() {
+      localStorage.removeItem(STORAGE_KEY_AI_KEY);
+      localStorage.setItem(STORAGE_KEY_AI_ENABLED, 'false');
+      document.getElementById('input-gemini-key').value = '';
+      document.getElementById('chk-ai-enabled').checked = false;
+      updateAiButtonUI();
+      closeAiModal();
+      speakReply('API key hata di gayi. Offline mode chalu hai.', 'AI Key Cleared');
+    }
+
+    async function parseWithGeminiAI(rawTranscript) {
+      const { key, enabled } = getAiConfig();
+      if (!enabled || !key) return null;
+
+      const customerNames = customers.map(c => c.name);
+      const pendingDesc = pendingState ? `Pending state: ${pendingState.type} (details: ${JSON.stringify(pendingState.draftTx || {})})` : 'No pending state.';
+
+      const prompt = `You are the voice command parser for "BolKhata", an Indian kirana shopkeeper credit (udhaar) ledger app.
+Parse the shopkeeper's Hindi/Hinglish/English spoken utterance into strict JSON.
+
+Existing customers: ${JSON.stringify(customerNames)}
+${pendingDesc}
+
+Rules:
+1. Convert Indian spoken numbers & fractions accurately: "paune do sau" / "paune 200" = 175, "sawa sau" = 125, "dhai sau" = 250, "dedh sau" = 150, "saade teen sau" = 350, "ek sau painsath" = 165.
+2. If the user says an ambiguous surname like "Sharma ji" and multiple existing customers share it (e.g. Rajesh Sharma, Anil Sharma), set "ambiguousMatches" to those exact names and "customerName" to null.
+3. If the user mentions a NEW customer name not in the existing list (even in Devanagari like "रोहित" or "रमेश वर्मा"), transliterate it cleanly into English Title Case (e.g. "Rohit", "Ramesh Verma") in "customerName".
+4. Extract all grocery items with quantities into "itemsList" (e.g. ["2 kg Aata", "1 L Doodh", "2 pkt Maggi"]). Keep it empty [] if none mentioned.
+5. Choose "intent" from: "credit", "payment", "query_customer", "query_today", "query_total", "add_customer", "undo", "confirm_yes", "confirm_no", "unknown".
+
+Return ONLY valid JSON with this exact schema:
+{
+  "intent": "credit" | "payment" | "query_customer" | "query_today" | "query_total" | "add_customer" | "undo" | "confirm_yes" | "confirm_no" | "unknown",
+  "customerName": string | null,
+  "ambiguousMatches": string[],
+  "amount": number | null,
+  "itemsList": string[]
+}
+
+Utterance: "${rawTranscript.replace(/"/g, '\"')}"`;
+
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) return null;
+        return JSON.parse(text);
+      } catch (err) {
+        console.warn('Gemini AI fallback to local parser:', err);
+        return null;
+      }
+    }
+
+    function executeAiResult(ai, rawTranscript) {
+      const trimmed = rawTranscript.trim();
+      const intent = ai.intent || 'unknown';
+
+      // Handle pending states first
+      if (pendingState) {
+        if (intent === 'confirm_no' || intent === 'undo') {
+          if (pendingState.type === 'confirm_amount') handleConfirmationDecision(false);
+          else { cancelPendingState(); speakReply('Theek hai, cancel kar diya.', '✨ AI • Cancelled', false, trimmed); }
+          return true;
+        }
+        if (pendingState.type === 'confirm_amount' && intent === 'confirm_yes') {
+          handleConfirmationDecision(true);
+          return true;
+        }
+        if (pendingState.type === 'missing_amount' && typeof ai.amount === 'number' && ai.amount > 0) {
+          const draft = { ...pendingState.draftTx, amount: Math.round(ai.amount) };
+          clearPendingUI();
+          commitTransaction(draft, trimmed);
+          return true;
+        }
+        if (pendingState.type === 'disambiguate_customer' && ai.customerName) {
+          const found = customers.find(c => c.name.toLowerCase() === ai.customerName.toLowerCase());
+          if (found && pendingState.candidates.some(c => c.id === found.id)) {
+            completeDisambiguation(found.id, trimmed);
+            return true;
+          }
+        }
+      }
+
+      if (intent === 'undo') {
+        performUndo('voice', trimmed);
+        return true;
+      }
+
+      if (intent === 'query_today') {
+        const todayTotal = getTodayCreditTotal();
+        pulseKpiCard('kpi-today');
+        playTone('success');
+        speakReply(`Aaj ka kul udhaar ${todayTotal.toLocaleString('en-IN')} rupaye hai.`, '✨ AI • Daily Tally', false, trimmed);
+        return true;
+      }
+
+      if (intent === 'query_total') {
+        const allPending = getTotalPendingBalance();
+        pulseKpiCard('kpi-total');
+        playTone('success');
+        speakReply(`Sabhi grahakon ka kul baaki ${allPending.toLocaleString('en-IN')} rupaye hai.`, '✨ AI • Total Pending', false, trimmed);
+        return true;
+      }
+
+      if (intent === 'add_customer' && ai.customerName) {
+        let existing = customers.find(c => c.name.toLowerCase() === ai.customerName.toLowerCase());
+        if (!existing) existing = addNewCustomer(ai.customerName);
+        switchTab('customers');
+        highlightCustomerCard(existing.id);
+        playTone('success');
+        speakReply(`Naya grahak ${existing.name} jod diya gaya hai.`, '✨ AI • Customer Added ✓', false, trimmed);
+        return true;
+      }
+
+      // Check ambiguous matches
+      if (Array.isArray(ai.ambiguousMatches) && ai.ambiguousMatches.length > 1) {
+        const cands = ai.ambiguousMatches
+          .map(name => customers.find(c => c.name.toLowerCase() === name.toLowerCase()))
+          .filter(Boolean);
+        if (cands.length > 1) {
+          const itemsArr = Array.isArray(ai.itemsList) && ai.itemsList.length ? ai.itemsList : ['Kirana Samaan'];
+          const draftTx = intent === 'query_customer'
+            ? { intent: 'query' }
+            : {
+                intent: intent === 'payment' ? 'payment' : 'credit',
+                customer: null,
+                amount: typeof ai.amount === 'number' && ai.amount > 0 ? Math.round(ai.amount) : null,
+                items: intent === 'payment' ? 'Cash / UPI Payment' : itemsArr.join(', '),
+                itemsList: intent === 'payment' ? ['Cash / UPI Payment'] : itemsArr
+              };
+          openDisambiguationSheet(cands, draftTx, trimmed);
+          return true;
+        }
+      }
+
+      if (intent === 'query_customer' && ai.customerName) {
+        const found = customers.find(c => c.name.toLowerCase() === ai.customerName.toLowerCase());
+        if (found) {
+          switchTab('customers');
+          highlightCustomerCard(found.id);
+          playTone('success');
+          speakReply(`${found.name} ka kul baaki ${found.balance.toLocaleString('en-IN')} rupaye hai.`, `✨ AI • ${found.name}`, false, trimmed);
+          return true;
+        }
+      }
+
+      if ((intent === 'credit' || intent === 'payment') && ai.customerName) {
+        let cust = customers.find(c => c.name.toLowerCase() === ai.customerName.toLowerCase());
+        let autoCreated = false;
+        if (!cust) {
+          cust = addNewCustomer(ai.customerName);
+          autoCreated = true;
+        }
+        const itemsArr = Array.isArray(ai.itemsList) && ai.itemsList.length ? ai.itemsList : ['Kirana Samaan'];
+        const draftTx = {
+          intent: intent === 'payment' ? 'payment' : 'credit',
+          customer: cust,
+          amount: typeof ai.amount === 'number' && ai.amount > 0 ? Math.round(ai.amount) : null,
+          items: intent === 'payment' ? 'Cash / UPI Payment' : itemsArr.join(', '),
+          itemsList: intent === 'payment' ? ['Cash / UPI Payment'] : itemsArr,
+          autoCreatedCustomer: autoCreated
+        };
+        if (!draftTx.amount) {
+          requestMissingAmount(draftTx, trimmed);
+        } else {
+          commitTransaction(draftTx, trimmed);
+        }
+        return true;
+      }
+
+      return false;
+    }
+
+    async function processSpokenInput(rawTranscript, confidence = 0.95, isSimulatedNoise = false) {
+      const trimmed = (rawTranscript || '').trim();
+      if (!isSimulatedNoise && trimmed.length >= 2 && getAiConfig().enabled) {
+        document.getElementById('transcript-label').textContent = '✨ Gemini AI Understanding...';
+        document.getElementById('assistant-reply').textContent = `"${trimmed}"`;
+        const aiResult = await parseWithGeminiAI(trimmed);
+        if (aiResult && executeAiResult(aiResult, trimmed)) {
+          return;
+        }
+      }
+      processSpokenInputLocal(rawTranscript, confidence, isSimulatedNoise);
+    }
+
+    function processSpokenInputLocal(rawTranscript, confidence = 0.95, isSimulatedNoise = false) {
       const trimmed = (rawTranscript || '').trim();
       const norm = normalizeText(trimmed);
 
@@ -1210,7 +1595,7 @@
       }
 
       // B. EXPLICIT "ADD NEW CUSTOMER" VOICE INTENT
-      if (/\b(naya\s+grahak|naya\s+customer|new\s+customer|add\s+customer|naya\s+khata)\b/.test(norm)) {
+      if (/\b(naya\s+grahak|naya\s+customer|new\s+customer|add\s+customer|naya\s+khata|add\s+name|ko\s+add\s+karo|ko\s+jodo|naam\s+jodo)\b/.test(norm) && !extractAmount(norm)) {
         const newName = extractNewCustomerName(norm);
         if (newName) {
           const created = addNewCustomer(newName);
@@ -2020,6 +2405,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       loadState();
       renderAll();
+      updateAiButtonUI();
     });
   </script>
 </body>
