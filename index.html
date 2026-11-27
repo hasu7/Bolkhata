@@ -78,7 +78,6 @@
     .wave-bar:nth-child(4) { animation-delay: 0.36s; }
     .wave-bar:nth-child(5) { animation-delay: 0.18s; }
 
-    /* When live audio meter is active, JS drives bar height directly */
     .wave-live .wave-bar {
       animation: none !important;
     }
@@ -190,19 +189,17 @@
 
     <!-- Live Voice Feedback & Assistant Reply Banner -->
     <section id="voice-banner" class="bg-white border-b border-slate-200 px-4 py-2.5 shrink-0 transition-all">
-      <!-- Idle / Assistant Reply State -->
       <div id="voice-idle-view" class="flex items-start gap-2.5">
         <div id="assistant-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-600 mt-1.5 shrink-0"></div>
         <div class="flex-1 min-w-0">
           <p id="transcript-label" class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide truncate">BolKhata Ready</p>
           <p id="assistant-reply" class="text-sm font-semibold text-slate-800 leading-snug mt-0.5">
-            Mic dabaiye aur boliye — "Sharma ji ke khate mein 165 rupaye likh do"
+            Mic dabaiye aur boliye — "Sharma ji ke khate mein 2 kilo aata, paune 200 rupaye likh do"
           </p>
           <p id="last-heard-hint" class="hidden text-[11px] text-slate-500 mt-1 truncate"></p>
         </div>
       </div>
 
-      <!-- Active Listening Waveform State (Google-style reactive bars) -->
       <div id="voice-listening-view" class="hidden flex items-center gap-3 py-0.5">
         <div id="wave-container" class="flex items-center gap-1 h-7 px-1.5 shrink-0">
           <span class="wave-bar w-1 bg-amber-600 rounded-full" style="height:8px"></span>
@@ -217,7 +214,6 @@
         </div>
       </div>
 
-      <!-- Pending Follow-Up Banner -->
       <div id="pending-prompt-box" class="hidden mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-300">
         <div class="flex items-start justify-between gap-2">
           <div>
@@ -297,28 +293,28 @@
             <span class="text-slate-600">"Sharma ji ke khate mein do kilo aata, ek litre doodh, 165 rupaye likh do"</span>
           </button>
 
-          <button onclick="simulateVoice(&quot;Rajesh Sharma ke khate mein dhai kilo chawal paune do sau rupaye likh do&quot;)"
+          <button onclick="simulateVoice(&quot;Rajesh Sharma ke khate mein dhai kilo chawal paune 200 rupaye likh do&quot;)"
             class="text-left px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs transition active:scale-[0.99]">
-            <span class="font-bold text-emerald-800 block">2. Indian Fractions (2.5 kg & ₹175)</span>
-            <span class="text-slate-600">"Rajesh Sharma ke khate mein dhai kilo chawal paune do sau rupaye likh do"</span>
+            <span class="font-bold text-emerald-800 block">2. Indian Fractions (2.5 kg & paune 200 = ₹175)</span>
+            <span class="text-slate-600">"Rajesh Sharma ke khate mein dhai kilo chawal paune 200 rupaye likh do"</span>
           </button>
 
-          <button onclick="simulateVoice(&quot;Sunita Devi ne 500 rupaye jama kiye&quot;)"
+          <button onclick="simulateVoice(&quot;Ramesh Verma ke khate mein 1 kilo chini, 1 packet biscuit, 120 rupaye likh do&quot;)"
+            class="text-left px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-xs transition active:scale-[0.99]">
+            <span class="font-bold text-blue-800 block">3. Auto-Add New Customer + Itemized List</span>
+            <span class="text-slate-600">"Ramesh Verma ke khate mein 1 kilo chini, 1 packet biscuit, 120 rupaye likh do"</span>
+          </button>
+
+          <button onclick="simulateVoice(&quot;Sunita Devi ne 620 rupaye jama kiye&quot;)"
             class="text-left px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs transition active:scale-[0.99]">
-            <span class="font-bold text-emerald-800 block">3. Record Payment (-₹500)</span>
-            <span class="text-slate-600">"Sunita Devi ne 500 rupaye jama kiye"</span>
+            <span class="font-bold text-emerald-800 block">4. Full Payment Settlement (Balance → ₹0)</span>
+            <span class="text-slate-600">"Sunita Devi ne 620 rupaye jama kiye"</span>
           </button>
 
           <button onclick="simulateVoice(&quot;Aaj ka total udhaar kitna hua?&quot;)"
             class="text-left px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-xs transition active:scale-[0.99]">
-            <span class="font-bold text-slate-800 block">4. Daily Total Query</span>
+            <span class="font-bold text-slate-800 block">5. Daily Total Query</span>
             <span class="text-slate-600">"Aaj ka total udhaar kitna hua?"</span>
-          </button>
-
-          <button onclick="simulateVoice(&quot;Gupta ji ka kitna baaki hai?&quot;)"
-            class="text-left px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-xs transition active:scale-[0.99]">
-            <span class="font-bold text-slate-800 block">5. Customer Balance Query</span>
-            <span class="text-slate-600">"Gupta ji ka kitna baaki hai?"</span>
           </button>
 
           <button onclick="simulateVoice(&quot;Meena Madam ke khate mein ek litre doodh likh do&quot;)"
@@ -393,6 +389,30 @@
       </div>
     </div>
 
+    <!-- Add Customer Modal -->
+    <div id="add-customer-modal" class="hidden absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+      <div class="w-full max-w-xs bg-white rounded-3xl p-5 shadow-2xl">
+        <h3 class="text-base font-extrabold text-slate-900">Naya Grahak Jodein</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Add a new customer to your BolKhata ledger.</p>
+        <form onsubmit="submitAddCustomer(event)" class="mt-3.5 space-y-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Customer Name *</label>
+            <input id="new-cust-name" type="text" required placeholder="e.g. Ramesh Verma"
+              class="w-full px-3 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-sm focus:outline-none focus:border-emerald-600 focus:bg-white" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Phone (Optional)</label>
+            <input id="new-cust-phone" type="tel" placeholder="+91 98XXX XXXXX"
+              class="w-full px-3 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-sm focus:outline-none focus:border-emerald-600 focus:bg-white" />
+          </div>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button type="button" onclick="closeAddCustomerModal()" class="py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+            <button type="submit" class="py-2.5 rounded-xl bg-emerald-700 text-white text-xs font-bold">Add Customer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- WhatsApp Receipt Preview Modal -->
     <div id="wa-modal" class="hidden absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div class="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl">
@@ -434,14 +454,16 @@
 
   <script>
     /* =========================================================================
-     * BOLKHATA — VOICE-FIRST KIRANA UDHAAR LEDGER (100% BROWSER-NATIVE)
-     * Google-style Web Speech API setup: continuous listening, smart silence
-     * endpointing, multi-alternative scoring, and WebRTC mic enhancement
-     * (echoCancellation + noiseSuppression + autoGainControl) with live meter.
+     * BOLKHATA — VOICE-FIRST KIRANA UDHAAR LEDGER (FINAL EDITION)
+     * - Google-style continuous Web Speech API + WebRTC mic enhancement
+     * - Mixed Hindi + Digit fraction parser (paune 200 = 175, sawa 300 = 325)
+     * - Auto-add new customers by voice OR "+ Add Customer" button
+     * - Itemized grocery list pills saved per entry & visible per customer
+     * - Paid / Clear (₹0) customer badge + optional 1-tap Remove
      * ========================================================================= */
 
-    const STORAGE_KEY_CUSTOMERS = 'bolkhata_customers_v1';
-    const STORAGE_KEY_TXS = 'bolkhata_txs_v1';
+    const STORAGE_KEY_CUSTOMERS = 'bolkhata_customers_v2';
+    const STORAGE_KEY_TXS = 'bolkhata_txs_v2';
 
     const DEFAULT_CUSTOMERS = [
       { id: 'c1', name: 'Rajesh Sharma', balance: 1255, phone: '+91 98101 23451' },
@@ -462,6 +484,7 @@
           type: 'credit',
           amount: 210,
           items: '1 L Tel, 1 kg Chini',
+          itemsList: ['1 L Tel', '1 kg Chini'],
           balanceAfter: 910,
           previousBalance: 700,
           timestamp: now - 1000 * 60 * 48,
@@ -475,6 +498,7 @@
           type: 'credit',
           amount: 145,
           items: '2 L Doodh, 1 pkt Bread',
+          itemsList: ['2 L Doodh', '1 pkt Bread'],
           balanceAfter: 620,
           previousBalance: 475,
           timestamp: now - 1000 * 60 * 95,
@@ -493,15 +517,15 @@
     let isListening = false;
     let recognition = null;
 
-    // Speech session state (Google-style patient endpointing)
+    // Speech session state
     let sessionFinalTranscript = '';
     let sessionInterimTranscript = '';
-    let sessionConfidence = 0; // 0 means browser did not report confidence
+    let sessionConfidence = 0;
     let sessionSubmitted = false;
     let silenceTimer = null;
     let initialWaitTimer = null;
 
-    // Live WebRTC audio meter state (desktop only to avoid mobile mic conflicts)
+    // Live WebRTC audio meter state
     let micStream = null;
     let meterRaf = null;
     let meterAnalyser = null;
@@ -570,6 +594,42 @@
       return customers.reduce((sum, c) => sum + Math.max(0, c.balance), 0);
     }
 
+    function titleCase(str) {
+      return str
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+
+    function addNewCustomer(name, phone = '') {
+      const cleanName = titleCase(name.trim());
+      const cleanPhone = phone.trim() || '+91 98101 ' + String(Math.floor(10000 + Math.random() * 89999));
+      const newCust = {
+        id: 'c-' + Date.now(),
+        name: cleanName,
+        balance: 0,
+        phone: cleanPhone
+      };
+      customers.unshift(newCust);
+      saveState();
+      renderAll();
+      return newCust;
+    }
+
+    function removeSettledCustomer(customerId, event) {
+      if (event) event.stopPropagation();
+      const idx = customers.findIndex(c => c.id === customerId);
+      if (idx === -1) return;
+      const name = customers[idx].name;
+      customers.splice(idx, 1);
+      if (filterCustomerId === customerId) clearCustomerFilter();
+      saveState();
+      renderAll();
+      playTone('success');
+      speakReply(`${name} ka naam list se hata diya gaya hai.`, 'Customer Removed');
+    }
+
     /* =========================================================================
      * WEB AUDIO API — SOFT FEEDBACK TONES & LIVE MIC LEVEL METER
      * ========================================================================= */
@@ -623,18 +683,13 @@
       } catch (e) {}
     }
 
-    // Google-style WebRTC mic enhancement + reactive waveform (desktop only)
     async function startLiveMicMeter() {
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       if (isMobile || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
 
       try {
         micStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
         });
         const ctx = getAudioCtx();
         if (!ctx || !isListening) {
@@ -663,21 +718,13 @@
           meterRaf = requestAnimationFrame(draw);
         };
         draw();
-      } catch (err) {
-        // Silently fall back to CSS animation if getUserMedia isn't available
-      }
+      } catch (err) {}
     }
 
     function stopLiveMicMeter() {
-      if (meterRaf) {
-        cancelAnimationFrame(meterRaf);
-        meterRaf = null;
-      }
+      if (meterRaf) { cancelAnimationFrame(meterRaf); meterRaf = null; }
       meterAnalyser = null;
-      if (micStream) {
-        micStream.getTracks().forEach(t => t.stop());
-        micStream = null;
-      }
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
       const waveContainer = document.getElementById('wave-container');
       if (waveContainer) waveContainer.classList.remove('wave-live');
     }
@@ -687,9 +734,7 @@
      * ========================================================================= */
     let cachedVoices = [];
     function loadVoices() {
-      if ('speechSynthesis' in window) {
-        cachedVoices = window.speechSynthesis.getVoices();
-      }
+      if ('speechSynthesis' in window) cachedVoices = window.speechSynthesis.getVoices();
     }
     if ('speechSynthesis' in window) {
       loadVoices();
@@ -722,22 +767,14 @@
         const hiVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
         const enInVoice = voices.find(v => v.lang && v.lang.toLowerCase() === 'en-in');
 
-        if (hiVoice) {
-          utter.voice = hiVoice;
-          utter.lang = 'hi-IN';
-        } else if (enInVoice) {
-          utter.voice = enInVoice;
-          utter.lang = 'en-IN';
-        } else {
-          utter.lang = 'hi-IN';
-        }
+        if (hiVoice) { utter.voice = hiVoice; utter.lang = 'hi-IN'; }
+        else if (enInVoice) { utter.voice = enInVoice; utter.lang = 'en-IN'; }
+        else { utter.lang = 'hi-IN'; }
 
         utter.rate = 1.04;
         utter.pitch = 1.0;
         window.speechSynthesis.speak(utter);
-      } catch (err) {
-        console.warn('TTS unavailable:', err);
-      }
+      } catch (err) {}
     }
 
     /* =========================================================================
@@ -746,20 +783,23 @@
     const DEVANAGARI_MAP = {
       'राजेश': 'rajesh', 'अनिल': 'anil', 'शर्मा': 'sharma', 'सुनीता': 'sunita',
       'देवी': 'devi', 'गुप्ता': 'gupta', 'मीना': 'meena', 'मैडम': 'madam', 'जी': 'ji',
-      'खाते': 'khate', 'खाता': 'khata', 'में': 'mein', 'के': 'ke', 'का': 'ka', 'की': 'ki', 'ने': 'ne',
+      'नया': 'naya', 'ग्राहक': 'grahak', 'कस्टमर': 'customer', 'नाम': 'naam',
+      'खाते': 'khate', 'खाता': 'khata', 'में': 'mein', 'के': 'ke', 'का': 'ka', 'की': 'ki', 'ने': 'ne', 'को': 'ko',
       'लिख': 'likh', 'दो': 'do', 'जोड़': 'jod', 'जोड़ो': 'jodo', 'उधार': 'udhaar',
       'जमा': 'jama', 'दिए': 'diye', 'दिये': 'diye', 'दिया': 'diya', 'वापस': 'wapas', 'पेमेंट': 'payment', 'किए': 'kiye', 'किये': 'kiye',
       'बाकी': 'baaki', 'बाक़ी': 'baaki', 'बकाया': 'baaki', 'कितना': 'kitna', 'कितने': 'kitne',
       'कुल': 'kul', 'टोटल': 'total', 'आज': 'aaj', 'हुआ': 'hua', 'है': 'hai',
       'कैंसल': 'cancel', 'करो': 'karo', 'हटाओ': 'hatao', 'गलत': 'galat', 'अंडू': 'undo',
       'हाँ': 'haan', 'हां': 'haan', 'सही': 'sahi', 'ना': 'na', 'नहीं': 'nahi',
-      'रुपये': 'rupaye', 'रुपए': 'rupaye', 'रुपया': 'rupaye', 'रुपये': 'rupaye',
+      'रुपये': 'rupaye', 'रुपए': 'rupaye', 'रुपया': 'rupaye',
       'किलो': 'kilo', 'किग्रा': 'kilo', 'लीटर': 'litre', 'लिटर': 'litre', 'पैकेट': 'packet', 'दर्जन': 'darjan',
       'आटा': 'aata', 'दूध': 'doodh', 'चावल': 'chawal', 'दाल': 'daal', 'चीनी': 'chini', 'शक्कर': 'chini',
       'तेल': 'tel', 'बिस्कुट': 'biscuit', 'चाय': 'chai', 'पत्ती': 'patti', 'नमक': 'namak',
       'साबुन': 'sabun', 'ब्रेड': 'bread', 'अंडे': 'ande', 'पनीर': 'paneer', 'दही': 'dahi',
       'घी': 'ghee', 'मैगी': 'maggi', 'मसाला': 'masala', 'आलू': 'aalu', 'प्याज': 'pyaaz',
-      'पौने': 'paune', 'सवा': 'sawa', 'साढ़े': 'saade', 'साढे': 'saade', 'डेढ़': 'dedh', 'डेढ': 'dedh',
+      'मक्खन': 'makkhan', 'शैम्पू': 'shampoo', 'सर्फ': 'surf', 'कॉफी': 'coffee', 'पोहा': 'poha',
+      'सूजी': 'suji', 'बेसन': 'besan', 'मैदा': 'maida', 'चिप्स': 'chips', 'चॉकलेट': 'chocolate',
+      'पौने': 'paune', 'पौना': 'paune', 'सवा': 'sawa', 'साढ़े': 'saade', 'साढे': 'saade', 'डेढ़': 'dedh', 'डेढ': 'dedh',
       'ढाई': 'dhai', 'आधा': 'aadha', 'सौ': 'sau', 'हजार': 'hazaar', 'हज़ार': 'hazaar',
       'एक': 'ek', 'तीन': 'teen', 'चार': 'chaar', 'पांच': 'paanch', 'पाँच': 'paanch',
       'छह': 'chhe', 'छे': 'chhe', 'सात': 'saat', 'आठ': 'aath', 'नौ': 'nau', 'दस': 'das',
@@ -823,24 +863,35 @@
       { keys: ['namak', 'salt'], label: 'Namak' },
       { keys: ['sabun', 'soap'], label: 'Sabun' },
       { keys: ['bread', 'bred'], label: 'Bread' },
-      { keys: ['ande', 'anda', 'eggs'], label: 'Ande' },
+      { keys: ['ande', 'anda', 'eggs', 'egg'], label: 'Ande' },
       { keys: ['paneer', 'panir'], label: 'Paneer' },
       { keys: ['dahi', 'curd'], label: 'Dahi' },
       { keys: ['ghee', 'ghi'], label: 'Ghee' },
       { keys: ['maggi', 'maggie', 'noodles'], label: 'Maggi' },
-      { keys: ['masala', 'haldi', 'mirch'], label: 'Masala' },
+      { keys: ['masala', 'haldi', 'mirch', 'dhaniya'], label: 'Masala' },
       { keys: ['aalu', 'aloo', 'potato'], label: 'Aalu' },
-      { keys: ['pyaaz', 'pyaj', 'onion'], label: 'Pyaaz' }
+      { keys: ['pyaaz', 'pyaj', 'onion'], label: 'Pyaaz' },
+      { keys: ['makkhan', 'butter'], label: 'Butter' },
+      { keys: ['shampoo', 'shampu'], label: 'Shampoo' },
+      { keys: ['surf', 'detergent', 'washing powder'], label: 'Surf' },
+      { keys: ['coffee', 'kofi'], label: 'Coffee' },
+      { keys: ['poha'], label: 'Poha' },
+      { keys: ['suji', 'sooji', 'rava'], label: 'Suji' },
+      { keys: ['besan'], label: 'Besan' },
+      { keys: ['maida'], label: 'Maida' },
+      { keys: ['chips', 'kurkure', 'namkeen'], label: 'Snacks' },
+      { keys: ['chocolate', 'toffee', 'candy'], label: 'Chocolate' },
+      { keys: ['cold drink', 'coke', 'pepsi', 'sprite', 'juice'], label: 'Cold Drink' }
     ];
 
     const QTY_PHRASES = [
-      { regex: 'sawa\\s+do', val: '2.25' },
-      { regex: 'sawa\\s+teen', val: '3.25' },
-      { regex: 'sawa\\s+ek|sawa', val: '1.25' },
-      { regex: 'saade\\s+teen', val: '3.5' },
-      { regex: 'saade\\s+chaar|saade\\s+char', val: '4.5' },
-      { regex: 'paune\\s+do', val: '1.75' },
-      { regex: 'paune\\s+teen', val: '2.75' },
+      { regex: 'sawa\\s+do|sawa\\s+2', val: '2.25' },
+      { regex: 'sawa\\s+teen|sawa\\s+3', val: '3.25' },
+      { regex: 'sawa\\s+ek|sawa\\s+1|sawa', val: '1.25' },
+      { regex: 'saade\\s+teen|saade\\s+3', val: '3.5' },
+      { regex: 'saade\\s+chaar|saade\\s+char|saade\\s+4', val: '4.5' },
+      { regex: 'paune\\s+do|paune\\s+2', val: '1.75' },
+      { regex: 'paune\\s+teen|paune\\s+3', val: '2.75' },
       { regex: 'dhai|dhaai', val: '2.5' },
       { regex: 'dedh|derh', val: '1.5' },
       { regex: 'aadha|adha|half', val: '0.5' },
@@ -895,6 +946,7 @@
       }
 
       return {
+        itemsList: found,
         itemsString: found.join(', '),
         remainingText: working.replace(/\s+/g, ' ').trim()
       };
@@ -914,24 +966,24 @@
     };
 
     const COMPOUND_INDIAN_AMOUNTS = [
-      { pattern: /\bpaune\s+do\s+sau\b/, value: 175 },
-      { pattern: /\bpaune\s+teen\s+sau\b/, value: 275 },
-      { pattern: /\bpaune\s+chaa?r\s+sau\b/, value: 375 },
-      { pattern: /\bpaune\s+paa?nch\s+sau\b/, value: 475 },
+      { pattern: /\bpaune\s+(?:do|2)\s+sau\b/, value: 175 },
+      { pattern: /\bpaune\s+(?:teen|3)\s+sau\b/, value: 275 },
+      { pattern: /\bpaune\s+(?:chaa?r|4)\s+sau\b/, value: 375 },
+      { pattern: /\bpaune\s+(?:paa?nch|5)\s+sau\b/, value: 475 },
       { pattern: /\bpaune\s+sau\b/, value: 75 },
       { pattern: /\bpaune\s+hazaar?\b/, value: 750 },
-      { pattern: /\bsawa\s+do\s+sau\b/, value: 225 },
-      { pattern: /\bsawa\s+teen\s+sau\b/, value: 325 },
-      { pattern: /\bsawa\s+chaa?r\s+sau\b/, value: 425 },
-      { pattern: /\bsawa\s+paa?nch\s+sau\b/, value: 525 },
+      { pattern: /\bsawa\s+(?:do|2)\s+sau\b/, value: 225 },
+      { pattern: /\bsawa\s+(?:teen|3)\s+sau\b/, value: 325 },
+      { pattern: /\bsawa\s+(?:chaa?r|4)\s+sau\b/, value: 425 },
+      { pattern: /\bsawa\s+(?:paa?nch|5)\s+sau\b/, value: 525 },
       { pattern: /\bsawa\s+sau\b/, value: 125 },
       { pattern: /\bsawa\s+hazaar?\b/, value: 1250 },
-      { pattern: /\bsaade\s+do\s+sau\b/, value: 250 },
-      { pattern: /\bsaade\s+teen\s+sau\b/, value: 350 },
-      { pattern: /\bsaade\s+chaa?r\s+sau\b/, value: 450 },
-      { pattern: /\bsaade\s+paa?nch\s+sau\b/, value: 550 },
-      { pattern: /\bsaade\s+chh?e\s+sau\b/, value: 650 },
-      { pattern: /\bsaade\s+saa?t\s+sau\b/, value: 750 },
+      { pattern: /\bsaade\s+(?:do|2)\s+sau\b/, value: 250 },
+      { pattern: /\bsaade\s+(?:teen|3)\s+sau\b/, value: 350 },
+      { pattern: /\bsaade\s+(?:chaa?r|4)\s+sau\b/, value: 450 },
+      { pattern: /\bsaade\s+(?:paa?nch|5)\s+sau\b/, value: 550 },
+      { pattern: /\bsaade\s+(?:chh?e|6)\s+sau\b/, value: 650 },
+      { pattern: /\bsaade\s+(?:saa?t|7)\s+sau\b/, value: 750 },
       { pattern: /\bdedh\s+hazaar?\b/, value: 1500 },
       { pattern: /\bdhai\s+hazaar?\b/, value: 2500 },
       { pattern: /\bdedh\s+sau\b/, value: 150 },
@@ -941,12 +993,44 @@
     function extractAmount(textWithoutItems) {
       if (!textWithoutItems) return null;
 
+      // 1. Mixed Hindi fraction + Digit (e.g. "paune 200" -> 175, "sawa 300" -> 325, "saade 500" -> 550)
+      const pauneDigit = textWithoutItems.match(/\bpaune\s+(\d+)\b/);
+      if (pauneDigit) {
+        const n = parseInt(pauneDigit[1], 10);
+        if (n >= 1000 && n % 1000 === 0) return n - 250;
+        if (n >= 100 && n % 100 === 0) return n - 25;
+        return Math.max(1, n - 25);
+      }
+
+      const sawaDigit = textWithoutItems.match(/\bsawa\s+(\d+)\b/);
+      if (sawaDigit) {
+        const n = parseInt(sawaDigit[1], 10);
+        if (n >= 1000 && n % 1000 === 0) return n + 250;
+        if (n >= 100 && n % 100 === 0) return n + 25;
+        return n + 25;
+      }
+
+      const saadeDigit = textWithoutItems.match(/\bsaade\s+(\d+)\b/);
+      if (saadeDigit) {
+        const n = parseInt(saadeDigit[1], 10);
+        if (n >= 1000 && n % 1000 === 0) return n + 500;
+        if (n >= 100 && n % 100 === 0) return n + 50;
+        return n + 50;
+      }
+
+      if (/\bdedh\s+100\b/.test(textWithoutItems)) return 150;
+      if (/\bdhai\s+100\b/.test(textWithoutItems)) return 250;
+      if (/\bdedh\s+1000\b/.test(textWithoutItems)) return 1500;
+      if (/\bdhai\s+1000\b/.test(textWithoutItems)) return 2500;
+
+      // 2. Spoken Hindi compound fraction phrases ("paune do sau" -> 175)
       for (const item of COMPOUND_INDIAN_AMOUNTS) {
         if (item.pattern.test(textWithoutItems)) {
           return item.value;
         }
       }
 
+      // 3. Standard numeric digits
       const digitMatches = textWithoutItems.match(/\b\d+(?:\.\d+)?\b/g);
       if (digitMatches && digitMatches.length > 0) {
         const nums = digitMatches.map(Number).filter(n => n > 0 && n < 100000);
@@ -955,6 +1039,7 @@
         }
       }
 
+      // 4. Pure spoken Hindi numbers ("ek sau painsath" -> 165)
       const tokens = textWithoutItems.split(/\s+/);
       let total = 0;
       let current = 0;
@@ -1013,7 +1098,27 @@
       return { status: 'none' };
     }
 
-    // Score SpeechRecognition alternatives to pick the one that best fits BolKhata domain
+    // Extract a brand-new customer name from Hindi/Hinglish phrases
+    function extractNewCustomerName(normText) {
+      // Explicit: "naya grahak Ramesh Verma jodo" / "add customer Ramesh Verma"
+      const explicitMatch = normText.match(/(?:naya\s+grahak|naya\s+customer|new\s+customer|add\s+customer|naya\s+khata)\s+([a-z]+(?:\s+[a-z]+)?)/i);
+      if (explicitMatch && explicitMatch[1]) {
+        const cleaned = explicitMatch[1].replace(/\b(jodo|jod|add|karo|banao|ka|ke|ki)\b/gi, '').trim();
+        if (cleaned.length >= 2) return titleCase(cleaned);
+      }
+
+      // Implicit: "Ramesh Verma ke khate mein ..." or "Ramesh ne 200 rupaye jama kiye"
+      const implicitMatch = normText.match(/^([a-z]+(?:\s+[a-z]+)?)\s+(?:ke\s+khate|ka\s+khata|ke\s+naam|ne\s+\d+|ne\s+paune|ne\s+sawa|ne\s+saade|ne\s+dedh|ne\s+dhai)/i);
+      if (implicitMatch && implicitMatch[1]) {
+        const candidate = implicitMatch[1].trim();
+        const banned = ['aaj', 'total', 'kul', 'cancel', 'undo', 'kitna', 'kitne', 'mera', 'apna'];
+        if (!banned.includes(candidate.split(' ')[0]) && candidate.length >= 2) {
+          return titleCase(candidate);
+        }
+      }
+      return null;
+    }
+
     function pickBestAlternative(resultList) {
       let best = { transcript: resultList[0].transcript, confidence: resultList[0].confidence || 0, score: -1 };
       for (let j = 0; j < resultList.length; j++) {
@@ -1026,7 +1131,7 @@
         const { itemsString, remainingText } = extractItems(norm);
         if (extractAmount(remainingText)) score += 3;
         if (itemsString) score += 2;
-        if (/\b(cancel|undo|baaki|total|aaj|jama|udhaar|haan|nahi)\b/.test(norm)) score += 3;
+        if (/\b(cancel|undo|baaki|total|aaj|jama|udhaar|haan|nahi|naya|grahak)\b/.test(norm)) score += 3;
         if (alt.confidence > 0) score += alt.confidence;
 
         if (score > best.score) {
@@ -1043,14 +1148,11 @@
       const trimmed = (rawTranscript || '').trim();
       const norm = normalizeText(trimmed);
 
-      // Only trigger noise fallback on explicit simulated noise or empty garbled input
       if (isSimulatedNoise || !norm || norm.length < 2) {
         triggerNoiseFallback();
         return;
       }
 
-      // Note: Chrome often reports confidence === 0 for valid hi-IN transcripts.
-      // Only treat as low-confidence when Chrome explicitly reports 0 < confidence < 0.45.
       const isLowConfidence = confidence > 0 && confidence < 0.45;
 
       // A. CHECK PENDING MULTI-TURN STATE FIRST
@@ -1107,12 +1209,26 @@
         }
       }
 
-      // B. INTENT DETECTION (UNDO -> QUERY -> PAYMENT -> ADD CREDIT)
+      // B. EXPLICIT "ADD NEW CUSTOMER" VOICE INTENT
+      if (/\b(naya\s+grahak|naya\s+customer|new\s+customer|add\s+customer|naya\s+khata)\b/.test(norm)) {
+        const newName = extractNewCustomerName(norm);
+        if (newName) {
+          const created = addNewCustomer(newName);
+          switchTab('customers');
+          highlightCustomerCard(created.id);
+          playTone('success');
+          speakReply(`Naya grahak ${created.name} jod diya gaya hai.`, 'New Customer Added ✓', false, trimmed);
+          return;
+        }
+      }
+
+      // C. VOICE UNDO INTENT
       if (/\b(cancel|galat|hatao|undo|wapas lo)\b/.test(norm)) {
         performUndo('voice', trimmed);
         return;
       }
 
+      // D. BALANCE / TOTAL QUERY INTENT
       const isQuery = /\b(kitna|kitne|total|kul|baaki|hisab|hisaab|balance)\b/.test(norm) &&
                       !/\b(likh|jod|jama|diye|diya|payment)\b/.test(norm);
 
@@ -1146,12 +1262,23 @@
         return;
       }
 
+      // E. PAYMENT VS ADD CREDIT INTENT (WITH AUTO-CREATE NEW CUSTOMER)
       const isPayment = /\b(jama|diye|diya|wapas|payment|paid|chuka|de diye)\b/.test(norm);
-      const { itemsString, remainingText } = extractItems(norm);
+      const { itemsList, itemsString, remainingText } = extractItems(norm);
       const amount = extractAmount(remainingText);
-      const custMatch = matchCustomers(norm);
+      let custMatch = matchCustomers(norm);
+      let autoCreatedCustomer = false;
 
-      if (custMatch.status === 'none' && !amount && !itemsString) {
+      if (custMatch.status === 'none') {
+        const extractedNewName = extractNewCustomerName(norm);
+        if (extractedNewName && (amount || itemsList.length > 0)) {
+          const created = addNewCustomer(extractedNewName);
+          custMatch = { status: 'exact', customer: created };
+          autoCreatedCustomer = true;
+        }
+      }
+
+      if (custMatch.status === 'none' && !amount && itemsList.length === 0) {
         playTone('error');
         speakReply('Samajh nahi aaya. Jaise boliye: "Rajesh Sharma ke khate mein 100 rupaye likh do".', 'Command Not Understood', true, trimmed);
         return;
@@ -1159,7 +1286,7 @@
 
       if (custMatch.status === 'none') {
         playTone('error');
-        speakReply('Grahak ka naam samajh nahi aaya. Naam ke saath phir boliye.', 'Customer Not Found', true, trimmed);
+        speakReply('Grahak ka naam samajh nahi aaya. Naam ke saath phir boliye ya Customers tab mein naya naam jodein.', 'Customer Not Found', true, trimmed);
         return;
       }
 
@@ -1168,7 +1295,9 @@
         customer: custMatch.status === 'exact' ? custMatch.customer : null,
         amount: amount,
         items: isPayment ? 'Cash / UPI Payment' : (itemsString || 'Kirana Samaan'),
-        confidence: confidence
+        itemsList: isPayment ? ['Cash / UPI Payment'] : (itemsList.length ? itemsList : ['Kirana Samaan']),
+        confidence: confidence,
+        autoCreatedCustomer
       };
 
       if (custMatch.status === 'ambiguous') {
@@ -1193,11 +1322,7 @@
      * EDGE-CASE HANDLERS
      * ========================================================================= */
     function openDisambiguationSheet(candidates, draftTx, heardText = null) {
-      pendingState = {
-        type: 'disambiguate_customer',
-        candidates,
-        draftTx
-      };
+      pendingState = { type: 'disambiguate_customer', candidates, draftTx };
 
       const namesList = candidates.map(c => c.name).join(' ya ');
       document.getElementById('disambiguate-title').textContent = `Kaunse ${candidates[0].name.split(' ').slice(-1)[0]} ji?`;
@@ -1252,11 +1377,7 @@
     }
 
     function requestMissingAmount(draftTx, heardText = null) {
-      pendingState = {
-        type: 'missing_amount',
-        draftTx
-      };
-
+      pendingState = { type: 'missing_amount', draftTx };
       const box = document.getElementById('pending-prompt-box');
       document.getElementById('pending-prompt-title').textContent = 'Amount Missing — Kitne Rupaye?';
       document.getElementById('pending-prompt-detail').textContent = `${draftTx.customer.name} • ${draftTx.items} — Tap Mic or type amount`;
@@ -1268,11 +1389,7 @@
     }
 
     function requestAmountConfirmation(draftTx, heardText = null) {
-      pendingState = {
-        type: 'confirm_amount',
-        draftTx
-      };
-
+      pendingState = { type: 'confirm_amount', draftTx };
       const box = document.getElementById('pending-prompt-box');
       document.getElementById('pending-prompt-title').textContent = 'Confirm Amount';
       document.getElementById('pending-prompt-detail').textContent = `${draftTx.customer.name} • ${formatINR(draftTx.amount)} (${draftTx.items})`;
@@ -1287,11 +1404,8 @@
       if (!pendingState || pendingState.type !== 'confirm_amount') return;
       const draft = pendingState.draftTx;
       clearPendingUI();
-      if (approved) {
-        commitTransaction(draft);
-      } else {
-        speakReply('Theek hai, entry save nahi ki gayi. Dobara boliye.');
-      }
+      if (approved) commitTransaction(draft);
+      else speakReply('Theek hai, entry save nahi ki gayi. Dobara boliye.');
     }
 
     function cancelPendingState() {
@@ -1337,6 +1451,7 @@
         type: isPayment ? 'payment' : 'credit',
         amount: draft.amount,
         items: draft.items,
+        itemsList: draft.itemsList || [draft.items],
         balanceAfter: newBalance,
         previousBalance: prevBalance,
         timestamp: Date.now(),
@@ -1351,9 +1466,14 @@
 
       playTone('success');
       if (isPayment) {
-        speakReply(`${cust.name} se ${draft.amount} rupaye jama. Ab baaki ${newBalance.toLocaleString('en-IN')}.`, 'Payment Logged ✓', false, heardText);
+        if (newBalance === 0) {
+          speakReply(`${cust.name} ka poora hisaab clear ho gaya hai! Ab baaki zero hai.`, 'Account Settled ✓', false, heardText);
+        } else {
+          speakReply(`${cust.name} se ${draft.amount} rupaye jama. Ab baaki ${newBalance.toLocaleString('en-IN')}.`, 'Payment Logged ✓', false, heardText);
+        }
       } else {
-        speakReply(`${cust.name} ke khate mein ${draft.amount} rupaye jode gaye. Kul baaki ${newBalance.toLocaleString('en-IN')}.`, 'Udhaar Logged ✓', false, heardText);
+        const prefix = draft.autoCreatedCustomer ? `Naya khata ${cust.name} banaya gaya. ` : '';
+        speakReply(`${prefix}${cust.name} ke khate mein ${draft.amount} rupaye jode gaye. Kul baaki ${newBalance.toLocaleString('en-IN')}.`, 'Udhaar Logged ✓', false, heardText);
       }
 
       showWaToast(tx);
@@ -1402,16 +1522,11 @@
 
       const tx = transactions[txIdx];
       const cust = customers.find(c => c.id === tx.customerId);
-      if (cust) {
-        cust.balance = tx.previousBalance;
-      }
+      if (cust) cust.balance = tx.previousBalance;
 
       transactions.splice(txIdx, 1);
       lastUndoableTxId = null;
-      if (undoInterval) {
-        clearInterval(undoInterval);
-        undoInterval = null;
-      }
+      if (undoInterval) { clearInterval(undoInterval); undoInterval = null; }
       document.getElementById('undo-bar').classList.add('hidden');
       hideWaToast();
 
@@ -1422,7 +1537,7 @@
     }
 
     /* =========================================================================
-     * GOOGLE-STYLE SPEECH RECOGNITION (PATIENT, CONTINUOUS, SMART ENDPOINTING)
+     * GOOGLE-STYLE SPEECH RECOGNITION
      * ========================================================================= */
     function clearSpeechTimers() {
       if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
@@ -1454,7 +1569,6 @@
       if (!SpeechRecognition) return null;
 
       const rec = new SpeechRecognition();
-      // Google-style continuous streaming with multiple alternatives
       rec.continuous = true;
       rec.interimResults = true;
       rec.maxAlternatives = 3;
@@ -1470,7 +1584,6 @@
         playTone('start');
         startLiveMicMeter();
 
-        // Patient 7-second initial wait before giving up if user hasn't started talking
         clearSpeechTimers();
         initialWaitTimer = setTimeout(() => {
           if (isListening && !sessionFinalTranscript && !sessionInterimTranscript) {
@@ -1481,10 +1594,7 @@
       };
 
       rec.onresult = (event) => {
-        if (initialWaitTimer) {
-          clearTimeout(initialWaitTimer);
-          initialWaitTimer = null;
-        }
+        if (initialWaitTimer) { clearTimeout(initialWaitTimer); initialWaitTimer = null; }
 
         let newFinal = '';
         let newInterim = '';
@@ -1494,9 +1604,7 @@
           if (res.isFinal) {
             const best = pickBestAlternative(res);
             newFinal += best.transcript + ' ';
-            if (best.confidence > 0) {
-              sessionConfidence = best.confidence;
-            }
+            if (best.confidence > 0) sessionConfidence = best.confidence;
           } else {
             newInterim += res[0].transcript + ' ';
           }
@@ -1509,7 +1617,6 @@
         document.getElementById('live-transcript').textContent = preview || 'Boliye...';
         document.getElementById('listening-status-label').textContent = 'Sun raha hoon... (Auto-sends after pause)';
 
-        // Google-style smart silence endpointing: wait 2.2s after last spoken word
         if (silenceTimer) clearTimeout(silenceTimer);
         silenceTimer = setTimeout(() => {
           if (isListening && !sessionSubmitted) {
@@ -1520,21 +1627,14 @@
       };
 
       rec.onerror = (event) => {
-        // Ignore harmless 'aborted' when we manually stop
         if (event.error === 'aborted') return;
-        // If we already captured words, process them instead of throwing an error!
         const hasWords = (sessionFinalTranscript + sessionInterimTranscript).trim().length > 0;
-        if (hasWords) {
-          finalizeSpeechSession();
-          return;
-        }
+        if (hasWords) { finalizeSpeechSession(); return; }
         finalizeSpeechSession(event.error);
       };
 
       rec.onend = () => {
-        if (!sessionSubmitted) {
-          finalizeSpeechSession();
-        }
+        if (!sessionSubmitted) finalizeSpeechSession();
       };
 
       return rec;
@@ -1544,15 +1644,12 @@
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
       if (isListening && recognition) {
-        // User tapped Stop -> immediately submit whatever was heard
         try { recognition.stop(); } catch (e) {}
         finalizeSpeechSession();
         return;
       }
 
-      if (!recognition) {
-        recognition = initSpeechRecognition();
-      }
+      if (!recognition) recognition = initSpeechRecognition();
 
       if (!recognition) {
         speakReply('Speech API is not supported in this browser. Open in Chrome or use Demo Chips below!', 'Browser Mic Unsupported', true);
@@ -1560,11 +1657,7 @@
       }
 
       recognition.lang = recognitionLang;
-      try {
-        recognition.start();
-      } catch (err) {
-        try { recognition.stop(); } catch (e) {}
-      }
+      try { recognition.start(); } catch (err) { try { recognition.stop(); } catch (e) {} }
     }
 
     function setListeningUI(active) {
@@ -1670,15 +1763,25 @@
           ? '<span class="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold uppercase">Udhaar</span>'
           : '<span class="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase">Jama</span>';
 
+        const itemsArr = Array.isArray(tx.itemsList) && tx.itemsList.length
+          ? tx.itemsList
+          : (tx.items ? tx.items.split(',').map(s => s.trim()).filter(Boolean) : ['Kirana Samaan']);
+
+        const itemPills = itemsArr.map(it => `
+          <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200/80 text-[11px] font-semibold text-slate-700">
+            ${it}
+          </span>
+        `).join('');
+
         return `
           <article class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 transition hover:border-slate-300">
             <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0">
+              <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
                   <h3 class="text-sm font-extrabold text-slate-900 truncate">${tx.customerName}</h3>
                   ${typeTag}
                 </div>
-                <p class="text-xs font-medium text-slate-600 mt-1">${tx.items}</p>
+                <div class="flex flex-wrap gap-1 mt-1.5">${itemPills}</div>
               </div>
               <div class="text-right shrink-0">
                 <p class="text-base font-extrabold tabular-nums ${amtColor}">${amtPrefix}${formatINR(tx.amount)}</p>
@@ -1699,27 +1802,62 @@
 
     function renderCustomers() {
       const container = document.getElementById('panel-customers');
-      container.innerHTML = customers.map(c => {
-        const count = transactions.filter(t => t.customerId === c.id).length;
+
+      // Sort: customers with pending balance first, settled (₹0) at the bottom
+      const sorted = [...customers].sort((a, b) => (b.balance > 0 ? 1 : 0) - (a.balance > 0 ? 1 : 0));
+
+      const addBtnHtml = `
+        <button onclick="openAddCustomerModal()"
+          class="w-full py-2.5 px-3.5 rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50/70 hover:bg-emerald-100/70 text-emerald-800 text-xs font-extrabold flex items-center justify-center gap-1.5 transition active:scale-[0.99]">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Add New Customer (or speak a new name)
+        </button>
+      `;
+
+      const cardsHtml = sorted.map(c => {
+        const custTxs = transactions.filter(t => t.customerId === c.id);
+        const isSettled = c.balance <= 0;
+
+        // Collect recent bought items for this customer
+        const recentItems = custTxs
+          .filter(t => t.type === 'credit')
+          .flatMap(t => Array.isArray(t.itemsList) ? t.itemsList : [t.items])
+          .filter(Boolean)
+          .slice(0, 3);
+
+        const itemsPreview = recentItems.length
+          ? `<p class="text-[11px] text-slate-500 mt-1 truncate">Items: ${recentItems.join(', ')}</p>`
+          : '';
+
         return `
-          <button id="cust-card-${c.id}" onclick="filterByCustomer('${c.id}')"
-            class="w-full text-left bg-white rounded-2xl p-3.5 shadow-sm border-2 border-slate-200/80 hover:border-emerald-600 flex items-center justify-between gap-3 transition active:scale-[0.99]">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-extrabold text-sm flex items-center justify-center shrink-0">
-                ${c.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+          <div id="cust-card-${c.id}" onclick="filterByCustomer('${c.id}')"
+            class="cursor-pointer w-full text-left bg-white rounded-2xl p-3.5 shadow-sm border-2 ${isSettled ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200/80'} hover:border-emerald-600 flex items-center justify-between gap-3 transition active:scale-[0.99]">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              <div class="w-10 h-10 rounded-xl ${isSettled ? 'bg-emerald-200 text-emerald-900' : 'bg-emerald-100 text-emerald-800'} font-extrabold text-sm flex items-center justify-center shrink-0">
+                ${c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
-              <div class="min-w-0">
-                <h3 class="text-sm font-extrabold text-slate-900 truncate">${c.name}</h3>
-                <p class="text-[11px] text-slate-500 mt-0.5">${c.phone} • ${count} ${count === 1 ? 'entry' : 'entries'}</p>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <h3 class="text-sm font-extrabold text-slate-900 truncate">${c.name}</h3>
+                  ${isSettled ? '<span class="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-extrabold uppercase shrink-0">Paid ✓</span>' : ''}
+                </div>
+                <p class="text-[11px] text-slate-500 mt-0.5">${c.phone} • ${custTxs.length} ${custTxs.length === 1 ? 'entry' : 'entries'}</p>
+                ${itemsPreview}
               </div>
             </div>
-            <div class="text-right shrink-0">
+            <div class="text-right shrink-0 flex flex-col items-end">
               <p class="text-base font-extrabold tabular-nums ${c.balance > 0 ? 'text-amber-600' : 'text-emerald-700'}">${formatINR(c.balance)}</p>
-              <p class="text-[10px] font-semibold text-slate-400 uppercase">Baaki</p>
+              ${isSettled
+                ? `<button onclick="removeSettledCustomer('${c.id}', event)" class="mt-1 px-2 py-0.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">Remove</button>`
+                : `<p class="text-[10px] font-semibold text-slate-400 uppercase">Baaki</p>`}
             </div>
-          </button>
+          </div>
         `;
       }).join('');
+
+      container.innerHTML = addBtnHtml + cardsHtml;
     }
 
     function switchTab(tab) {
@@ -1745,6 +1883,7 @@
     function filterByCustomer(customerId) {
       filterCustomerId = customerId;
       const cust = customers.find(c => c.id === customerId);
+      if (!cust) return;
       document.getElementById('customer-filter-label').textContent = `Showing entries for ${cust.name} (Due: ${formatINR(cust.balance)})`;
       document.getElementById('customer-filter-bar').classList.remove('hidden');
       switchTab('entries');
@@ -1777,14 +1916,37 @@
     }
 
     /* =========================================================================
-     * TOASTS, MODALS & HEADER CONTROLS
+     * MODALS, TOASTS & HEADER CONTROLS
      * ========================================================================= */
+    function openAddCustomerModal() {
+      document.getElementById('new-cust-name').value = '';
+      document.getElementById('new-cust-phone').value = '';
+      document.getElementById('add-customer-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('new-cust-name').focus(), 50);
+    }
+
+    function closeAddCustomerModal() {
+      document.getElementById('add-customer-modal').classList.add('hidden');
+    }
+
+    function submitAddCustomer(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-cust-name').value.trim();
+      const phone = document.getElementById('new-cust-phone').value.trim();
+      if (!name) return;
+      const created = addNewCustomer(name, phone);
+      closeAddCustomerModal();
+      switchTab('customers');
+      highlightCustomerCard(created.id);
+      playTone('success');
+      speakReply(`Naya grahak ${created.name} jod diya gaya hai.`, 'New Customer Added ✓');
+    }
+
     function showWaToast(tx) {
       const toast = document.getElementById('wa-toast');
       document.getElementById('wa-toast-recipient').textContent = `${tx.customerName} (${tx.customerPhone})`;
       document.getElementById('wa-toast-body').textContent = tx.waMessage.replace(/\n/g, ' ');
       toast.classList.remove('hidden');
-
       if (waToastTimer) clearTimeout(waToastTimer);
       waToastTimer = setTimeout(hideWaToast, 5500);
     }
@@ -1827,9 +1989,7 @@
       isMuted = !isMuted;
       document.getElementById('icon-sound-on').classList.toggle('hidden', isMuted);
       document.getElementById('icon-sound-off').classList.toggle('hidden', !isMuted);
-      if (isMuted && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      if (isMuted && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     }
 
     function openResetModal() {
