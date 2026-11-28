@@ -82,7 +82,7 @@ docker compose down
 
 ## 👨‍💻 Authors
 
-- **Rajiv Kumar**
+- **Rajiv Kumar** ([@Rajivku](https://github.com/Rajivku))
 - **Pankaj Kumar Jha** ([@hasu7](https://github.com/hasu7))
 
 ---
